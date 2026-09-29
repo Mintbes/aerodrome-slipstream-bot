@@ -1,0 +1,39 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+export interface BotConfig {
+  rpcUrl: string;
+  privateKey: `0x${string}`;
+  rangeWidthPercent: number;
+  rebalanceDelaySeconds: number;
+  checkIntervalSeconds: number;
+  dryRun: boolean;
+  port: number;
+  // Aerodrome Slipstream WETH/USDC (CL100) addresses on Base
+  contracts: {
+    weth: `0x${string}`;
+    usdc: `0x${string}`;
+    aero: `0x${string}`;
+    pool: `0x${string}`;
+    positionManager: `0x${string}`;
+    voter: `0x${string}`;
+  };
+}
+
+export const config: BotConfig = {
+  rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+  privateKey: (process.env.PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001') as `0x${string}`,
+  rangeWidthPercent: parseFloat(process.env.RANGE_WIDTH_PERCENT || '4.1'),
+  rebalanceDelaySeconds: parseInt(process.env.REBALANCE_DELAY_SECONDS || '3600', 10),
+  checkIntervalSeconds: parseInt(process.env.CHECK_INTERVAL_SECONDS || '15', 10),
+  dryRun: process.env.DRY_RUN !== 'false',
+  port: parseInt(process.env.PORT || '3000', 10),
+  contracts: {
+    weth: '0x4200000000000000000000000000000000000006',
+    usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    aero: '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
+    pool: '0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59', // WETH/USDC CL100
+    positionManager: '0x827922686190790b37229fd06084350E74485b72',
+    voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5'
+  }
+};

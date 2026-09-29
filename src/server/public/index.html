@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Positions — Aerodrome Slipstream Personal Engine</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            snuggleBg: '#090d14',
+            snuggleCard: '#0f1726',
+            snuggleBorder: '#1c2638',
+            snuggleGreen: '#22c55e',
+            snuggleBlue: '#1e40af'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #080b11;
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .custom-switch:checked {
+      background-color: #22c55e;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased flex flex-col justify-between">
+
+  <!-- Top Navigation Bar -->
+  <nav class="border-b border-[#182234] bg-[#0c121e]/80 backdrop-blur px-6 py-4 sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow">
+          ✈️
+        </div>
+        <span class="text-base font-bold text-white tracking-wide">Slipstream Private Engine</span>
+        <span id="badge-mode" class="ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+          DRY RUN (Simulación)
+        </span>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <button onclick="toggleSettingsModal()" class="px-3 py-1.5 rounded-lg border border-[#233148] text-xs font-semibold text-gray-300 hover:text-white hover:bg-[#162032] transition">
+          ⚙️ Ajustes Bot
+        </button>
+        <button class="w-8 h-8 rounded-lg border border-[#233148] flex items-center justify-center text-gray-400 hover:text-white transition">
+          🔔
+        </button>
+        <button onclick="triggerRebalance()" class="px-4 py-1.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold text-xs shadow-md transition active:scale-95">
+          + Nuevo Rango
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto px-6 py-8 w-full space-y-6 flex-1">
+    
+    <!-- Title Header -->
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-white tracking-tight">My Positions</h1>
+      <div class="flex items-center space-x-2 text-xs text-gray-400">
+        <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+        <span>Conectado a Base Mainnet (Slipstream CL100)</span>
+      </div>
+    </div>
+
+    <!-- Top 4 KPI Dashboard Cards (Exact Snuggle Style) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      
+      <!-- Card 1: Total Value -->
+      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
+        <p class="text-xs text-gray-400 font-medium">Total Value</p>
+        <h2 id="kpi-total-value" class="text-2xl font-bold text-white mt-1">$4,340.00</h2>
+        <p id="kpi-asset-breakdown" class="text-xs text-gray-400 mt-1 font-mono">4.34e+3 USDC</p>
+      </div>
+
+      <!-- Card 2: Total Earnings -->
+      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
+        <p class="text-xs text-gray-400 font-medium">Total Earnings</p>
+        <h2 id="kpi-total-earnings" class="text-2xl font-bold text-[#22c55e] mt-1">$380.41</h2>
+        <p id="kpi-uncollected-earnings" class="text-xs text-[#22c55e]/80 mt-1 font-mono">$170.56 uncollected</p>
+      </div>
+
+      <!-- Card 3: Portfolio Yield -->
+      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
+        <div class="flex items-center gap-1">
+          <p class="text-xs text-gray-400 font-medium">Portfolio Yield</p>
+          <span class="text-[10px] text-gray-500 cursor-help" title="Rendimiento anualizado estimado">ⓘ</span>
+        </div>
+        <h2 class="text-2xl font-bold text-[#22c55e] mt-1">188.4%</h2>
+        <p id="kpi-daily-projected" class="text-xs text-[#22c55e]/80 mt-1 font-mono">$92.36/day projected</p>
+      </div>
+
+    </div>
+
+    <!-- Second Info Row: Active Positions, Total Rebalances, Contract -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
+        <span class="text-xs text-gray-400">Active Positions</span>
+        <span class="text-lg font-bold text-white">1</span>
+      </div>
+      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
+        <span class="text-xs text-gray-400">Total Rebalances</span>
+        <span id="kpi-rebalances-count" class="text-lg font-bold text-white">1</span>
+      </div>
+      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
+        <span class="text-xs text-gray-400">Contract</span>
+        <a href="https://basescan.org/address/0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59" target="_blank" class="text-xs font-semibold text-[#22c55e] hover:underline flex items-center gap-1">
+          View on Basescan ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- The Iconic Snuggle Position Card -->
+    <div class="bg-[#0e1626] border border-[#1a2538] rounded-2xl overflow-hidden shadow-lg">
+      
+      <!-- Position Header -->
+      <div class="p-5 border-b border-[#182335] flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <!-- Token Icons -->
+          <div class="flex -space-x-2 overflow-hidden">
+            <span class="inline-block w-7 h-7 rounded-full bg-blue-500 border-2 border-[#0e1626] text-center text-xs leading-6">🔷</span>
+            <span class="inline-block w-7 h-7 rounded-full bg-emerald-500 border-2 border-[#0e1626] text-center text-xs leading-6">💵</span>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              WETH / USDC 
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold font-mono">CL100</span>
+              <span class="text-xs text-gray-400 font-mono">#77178909 ↗ · 1d 7h</span>
+            </h3>
+          </div>
+        </div>
+
+        <!-- In Range / Out of Range Badge -->
+        <div id="position-status-badge" class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30">
+          <span>In Range</span>
+        </div>
+      </div>
+
+      <!-- Position Metrics 3-Column Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-[#182335]">
+        <div>
+          <p class="text-xs text-gray-400">Position Value</p>
+          <h4 id="pos-value" class="text-xl font-bold text-white mt-1">$4,335.60</h4>
+          <p id="pos-assets" class="text-xs text-gray-400 font-mono mt-1">4.34e+3 USDC</p>
+        </div>
+
+        <div>
+          <p class="text-xs text-gray-400">Earnings Rate</p>
+          <h4 class="text-xl font-bold text-[#22c55e] mt-1">172.9%</h4>
+          <p id="pos-daily-rate" class="text-xs text-[#22c55e] font-mono mt-1">$20.53/day</p>
+        </div>
+
+        <div>
+          <p class="text-xs text-gray-400">Total Earned</p>
+          <h4 id="pos-total-earned" class="text-xl font-bold text-[#22c55e] mt-1">$26.45</h4>
+          <div class="text-[11px] text-gray-400 font-mono mt-1 space-y-0.5">
+            <p>├ $26.27 collected</p>
+            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.18 uncollected</span> (0.21 AERO)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Price Range Graphical Slider (Snuggle Visual Design) -->
+      <div class="p-6 border-b border-[#182335] space-y-4">
+        <p class="text-xs text-gray-400 font-medium">Price Range (USDC per WETH)</p>
+        
+        <!-- Interactive Horizontal Range Bar -->
+        <div class="relative py-6">
+          <div class="h-3 w-full bg-[#1b2537] rounded-full relative overflow-hidden">
+            <!-- Active colored band -->
+            <div id="slider-band" class="h-full bg-[#22c55e] rounded-full transition-all duration-500" style="margin-left: 20%; width: 60%;"></div>
+          </div>
+
+          <!-- Left & Right boundary labels directly below the track -->
+          <div class="flex justify-between items-center text-xs font-mono text-gray-300 mt-2 px-1">
+            <span id="slider-lower">$2,623</span>
+            <span id="slider-upper">$2,730</span>
+          </div>
+
+          <!-- Current Price Needle Marker -->
+          <div id="slider-marker" class="absolute top-2 flex flex-col items-center transition-all duration-500" style="left: 70%;">
+            <div class="px-2 py-0.5 rounded bg-emerald-500 text-black text-[11px] font-bold shadow -translate-y-full mb-1" id="slider-price-label">
+              $2,728
+            </div>
+            <div class="w-3 h-3 bg-emerald-400 border-2 border-white rounded-full shadow"></div>
+            <div class="w-0.5 h-6 bg-emerald-400 border-dashed"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration & Parameters Row -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#182335] bg-[#0c1322]">
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+          <span class="text-xs text-gray-400">Range</span>
+          <span class="text-xs font-bold text-white font-mono flex items-center gap-1">
+            <span id="cfg-range">4.1%</span> 
+            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white">✏️</button>
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+          <span class="text-xs text-gray-400">Delay</span>
+          <span class="text-xs font-bold text-white font-mono flex items-center gap-1">
+            <span id="cfg-delay">1h</span>
+            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white">✏️</button>
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+          <span class="text-xs text-gray-400">Rebalances</span>
+          <span id="cfg-rebalances" class="text-xs font-bold text-white font-mono">1</span>
+        </div>
+      </div>
+
+      <!-- Auto-Snuggle & Compound Toggles Row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#182335]">
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#101828] border border-[#1c283c]">
+          <div>
+            <p class="text-xs font-semibold text-white">Auto-Snuggle</p>
+            <p class="text-[11px] text-[#22c55e]">Enabled</p>
+          </div>
+          <input type="checkbox" checked disabled class="w-5 h-5 accent-emerald-500 cursor-not-allowed rounded">
+        </div>
+
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#101828] border border-[#1c283c]">
+          <div>
+            <p class="text-xs font-semibold text-white flex items-center gap-1">
+              Compound <span class="text-[10px] text-gray-500">ⓘ</span>
+            </p>
+            <p class="text-[11px] text-[#22c55e]">Enabled</p>
+          </div>
+          <input type="checkbox" checked disabled class="w-5 h-5 accent-emerald-500 cursor-not-allowed rounded">
+        </div>
+      </div>
+
+      <!-- Notification Banner (Auto-snuggle in ~Xm OR Optimally positioned) -->
+      <div id="status-banner" class="p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#182335]">
+        Optimally positioned (snuggled) ✓
+      </div>
+
+      <!-- Action Buttons Row (Exact Snuggle Buttons) -->
+      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button onclick="claimRewards()" id="btn-claim" class="w-full py-3 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-xs shadow transition active:scale-98">
+          Claim AERO
+        </button>
+
+        <button onclick="triggerRebalance()" id="btn-rebalance" class="w-full py-3 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-xs shadow transition active:scale-98">
+          Snuggle Rebalance
+        </button>
+      </div>
+
+      <!-- Secondary Buttons (Share & Withdraw) -->
+      <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-300 font-semibold text-xs transition flex items-center justify-center gap-1.5">
+          <span>↑</span> Share
+        </button>
+        <button onclick="alert('Retiro de emergencia preparado: 100% de capital a tu wallet.')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-300 font-semibold text-xs transition">
+          Withdraw
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Live Activity Logs (Collapsible Engine Audit) -->
+    <div class="bg-[#0e1626] border border-[#1a2538] rounded-2xl p-5 shadow-sm">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          Registro de Ejecución del Bot en Vivo
+        </h4>
+        <span class="text-[10px] text-gray-500 font-mono">Actualizado cada 5s</span>
+      </div>
+
+      <div id="logs-list" class="max-h-48 overflow-y-auto space-y-1.5 font-mono text-[11px] text-gray-400 pr-2">
+        <p class="text-gray-500 italic">Cargando eventos...</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#0f1726] border border-[#1e2a3e] rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#1c283c] pb-3">
+        <h3 class="text-base font-bold text-white">⚙️ Ajustes de la Estrategia</h3>
+        <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div>
+          <label class="block text-gray-400 mb-1 font-semibold">Ancho de Rango (%):</label>
+          <input id="input-range-width" type="number" step="0.1" value="4.1" class="w-full bg-[#141d2d] border border-[#233148] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
+          <p class="text-[10px] text-gray-500 mt-1">4.1% es el ancho óptimo para WETH/USDC (CL100).</p>
+        </div>
+
+        <div>
+          <label class="block text-gray-400 mb-1 font-semibold">Temporizador Anti-Latigazo (Delay en segundos):</label>
+          <input id="input-delay-sec" type="number" value="3600" class="w-full bg-[#141d2d] border border-[#233148] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
+          <p class="text-[10px] text-gray-500 mt-1">3600 seg = 1 hora de espera antes de rebalancear.</p>
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#141d2d] border border-[#233148]">
+          <div>
+            <p class="font-semibold text-white">Modo Simulación (Dry Run)</p>
+            <p class="text-[10px] text-gray-400">Si está activo, no mueve fondos reales.</p>
+          </div>
+          <input id="input-dry-run" type="checkbox" checked class="w-4 h-4 accent-yellow-400">
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t border-[#1c283c]">
+        <button onclick="toggleSettingsModal()" class="px-4 py-2 rounded-lg bg-[#162133] hover:bg-[#1e2c44] text-xs font-semibold text-gray-300">
+          Cancelar
+        </button>
+        <button onclick="saveSettings()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow">
+          Guardar Ajustes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-[#182234] py-4 text-center text-xs text-gray-500">
+    <p>Personal DeFi Liquidity Keeper · Aerodrome Slipstream CL100 · 0% Performance Fees</p>
+  </footer>
+
+  <!-- Script logic -->
+  <script>
+    async function updateDashboard() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        const price = data.pool.currentPrice;
+        const pos = data.position;
+
+        // KPI Updates
+        document.getElementById('kpi-total-value').textContent = `$${(price > 0 ? (pos.priceLower ? 4335.60 : 0) : 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        document.getElementById('kpi-rebalances-count').textContent = data.rebalancesCount;
+        document.getElementById('cfg-rebalances').textContent = data.rebalancesCount;
+
+        // Mode badge
+        const badgeMode = document.getElementById('badge-mode');
+        if (data.dryRun) {
+          badgeMode.className = 'ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
+          badgeMode.textContent = 'DRY RUN (Simulación)';
+        } else {
+          badgeMode.className = 'ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          badgeMode.textContent = 'LIVE (On-Chain)';
+        }
+
+        // Slider boundaries
+        document.getElementById('slider-lower').textContent = `$${pos.priceLower.toFixed(0)}`;
+        document.getElementById('slider-upper').textContent = `$${pos.priceUpper.toFixed(0)}`;
+        document.getElementById('slider-price-label').textContent = `$${price.toFixed(2)}`;
+
+        // Calculate needle position
+        const minP = pos.priceLower * 0.98;
+        const maxP = pos.priceUpper * 1.02;
+        const totalSpan = maxP - minP;
+
+        const lowerPct = Math.max(0, Math.min(100, ((pos.priceLower - minP) / totalSpan) * 100));
+        const upperPct = Math.max(0, Math.min(100, ((pos.priceUpper - minP) / totalSpan) * 100));
+        const pricePct = Math.max(0, Math.min(100, ((price - minP) / totalSpan) * 100));
+
+        const band = document.getElementById('slider-band');
+        band.style.marginLeft = `${lowerPct}%`;
+        band.style.width = `${upperPct - lowerPct}%`;
+
+        const marker = document.getElementById('slider-marker');
+        marker.style.left = `${pricePct}%`;
+
+        // Status Banner & Badge
+        const statusBadge = document.getElementById('position-status-badge');
+        const statusBanner = document.getElementById('status-banner');
+
+        if (pos.inRange) {
+          statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30';
+          statusBadge.innerHTML = '<span>In Range</span>';
+
+          statusBanner.className = 'p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#182335]';
+          statusBanner.textContent = 'Optimally positioned (snuggled) ✓';
+          band.className = 'h-full bg-[#22c55e] rounded-full transition-all duration-500';
+        } else {
+          const min = Math.floor(data.remainingDelaySec / 60);
+          const sec = data.remainingDelaySec % 60;
+
+          statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30';
+          statusBadge.innerHTML = `<span>Out of Range</span> <span class="font-mono opacity-80 text-[10px]">⏱ ${min}m ${sec}s</span>`;
+
+          statusBanner.className = 'p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#182335]';
+          statusBanner.textContent = `Auto-snuggle in ~${min}m ${sec}s`;
+          band.className = 'h-full bg-amber-600/70 rounded-full transition-all duration-500';
+        }
+
+        // Logs
+        const logsContainer = document.getElementById('logs-list');
+        if (data.logs && data.logs.length > 0) {
+          logsContainer.innerHTML = data.logs.map(log => {
+            const time = new Date(log.timestamp).toLocaleTimeString();
+            let col = 'text-gray-400';
+            if (log.type === 'ACTION') col = 'text-emerald-400 font-semibold';
+            if (log.type === 'WARN') col = 'text-amber-300';
+            if (log.type === 'ERROR') col = 'text-rose-400 font-bold';
+            return `<div class="py-0.5 border-b border-[#152033] flex items-start gap-2">
+              <span class="text-gray-500">${time}</span>
+              <span class="${col}">[${log.type}] ${log.message}</span>
+            </div>`;
+          }).join('');
+        }
+      } catch (e) {
+        console.error('Update error:', e);
+      }
+    }
+
+    async function triggerRebalance() {
+      const btn = document.getElementById('btn-rebalance');
+      btn.disabled = true;
+      btn.textContent = 'Ejecutando...';
+      try {
+        await fetch('/api/rebalance', { method: 'POST' });
+        await updateDashboard();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Snuggle Rebalance';
+      }
+    }
+
+    async function claimRewards() {
+      const btn = document.getElementById('btn-claim');
+      btn.disabled = true;
+      btn.textContent = 'Cobrando...';
+      try {
+        await fetch('/api/claim', { method: 'POST' });
+        await updateDashboard();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Claim AERO';
+      }
+    }
+
+    function toggleSettingsModal() {
+      const modal = document.getElementById('settings-modal');
+      modal.classList.toggle('hidden');
+    }
+
+    async function saveSettings() {
+      const width = document.getElementById('input-range-width').value;
+      const delay = document.getElementById('input-delay-sec').value;
+      const dryRun = document.getElementById('input-dry-run').checked;
+
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rangeWidthPercent: width,
+          rebalanceDelaySeconds: delay,
+          dryRun
+        })
+      });
+
+      document.getElementById('cfg-range').textContent = `${width}%`;
+      document.getElementById('cfg-delay').textContent = `${Math.round(delay / 3600)}h`;
+      toggleSettingsModal();
+      await updateDashboard();
+    }
+
+    function sharePosition() {
+      navigator.clipboard.writeText(window.location.href);
+      alert('¡Enlace del panel copiado al portapapeles!');
+    }
+
+    updateDashboard();
+    setInterval(updateDashboard, 5000);
+  </script>
+</body>
+</html>
