@@ -125,8 +125,9 @@ export class KeeperEngine {
         }
       }
     } catch (err: any) {
-      console.error('Error during keeper check:', err);
-      this.storage.addLog('ERROR', `Keeper check failed: ${err.message || err}`);
+      const msg = err.shortMessage || err.message || String(err);
+      console.error(`[Keeper] Check warning: ${msg}`);
+      this.storage.addLog('ERROR', `Keeper check failed: ${msg}`);
     }
   }
 

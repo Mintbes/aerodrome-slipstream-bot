@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, http, formatUnits, parseUnits } from 'viem';
+import { createPublicClient, createWalletClient, http, fallback, formatUnits, parseUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
 import { config } from '../config';
@@ -33,16 +33,33 @@ export class AerodromeService {
   public account;
 
   constructor() {
+    // Multi-RPC failover pool to prevent rate-limit throttling
+    const rpcList = Array.from(new Set([
+      'https://base-rpc.publicnode.com',
+      config.rpcUrl,
+      'https://base.llamarpc.com',
+      'https://1rpc.io/base',
+      'https://mainnet.base.org'
+    ])).map(url => http(url, { timeout: 8000 }));
+
     this.publicClient = createPublicClient({
       chain: base,
-      transport: http(config.rpcUrl)
+      transport: fallback(rpcList, { rank: false, retryCount: 3 }),
+      batch: {
+        multicall: true
+      }
     });
 
-    this.account = privateKeyToAccount(config.privateKey);
+    try {
+      this.account = privateKeyToAccount(config.privateKey);
+    } catch {
+      this.account = privateKeyToAccount('0x0000000000000000000000000000000000000000000000000000000000000001');
+    }
+
     this.walletClient = createWalletClient({
       account: this.account,
       chain: base,
-      transport: http(config.rpcUrl)
+      transport: fallback(rpcList, { rank: false, retryCount: 3 })
     });
   }
 

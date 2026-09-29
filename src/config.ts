@@ -28,7 +28,7 @@ const safePrivateKey: `0x${string}` = isValidKey
   : '0x0000000000000000000000000000000000000000000000000000000000000001';
 
 export const config: BotConfig = {
-  rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+  rpcUrl: process.env.BASE_RPC_URL || 'https://base-rpc.publicnode.com',
   privateKey: safePrivateKey,
   rangeWidthPercent: parseFloat(process.env.RANGE_WIDTH_PERCENT || '4.1'),
   rebalanceDelaySeconds: parseInt(process.env.REBALANCE_DELAY_SECONDS || '3600', 10),
