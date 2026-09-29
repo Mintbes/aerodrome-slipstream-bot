@@ -20,9 +20,16 @@ export interface BotConfig {
   };
 }
 
+const rawKey = process.env.PRIVATE_KEY?.trim() || '';
+const isAllZeros = /^0x?0{64}$/.test(rawKey);
+const isValidKey = /^0x[0-9a-fA-F]{64}$/.test(rawKey) && !isAllZeros;
+const safePrivateKey: `0x${string}` = isValidKey
+  ? (rawKey as `0x${string}`)
+  : '0x0000000000000000000000000000000000000000000000000000000000000001';
+
 export const config: BotConfig = {
   rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
-  privateKey: (process.env.PRIVATE_KEY || '0x0000000000000000000000000000000000000000000000000000000000000001') as `0x${string}`,
+  privateKey: safePrivateKey,
   rangeWidthPercent: parseFloat(process.env.RANGE_WIDTH_PERCENT || '4.1'),
   rebalanceDelaySeconds: parseInt(process.env.REBALANCE_DELAY_SECONDS || '3600', 10),
   checkIntervalSeconds: parseInt(process.env.CHECK_INTERVAL_SECONDS || '15', 10),
