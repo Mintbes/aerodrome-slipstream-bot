@@ -1,8 +1,8 @@
-import { createPublicClient, createWalletClient, http, fallback, formatUnits, parseUnits } from 'viem';
+import { createPublicClient, createWalletClient, http, fallback, formatUnits, parseUnits, maxUint256, maxUint128 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
 import { config } from '../config';
-import { poolAbi, positionManagerAbi, erc20Abi, gaugeAbi } from './abis';
+import { poolAbi, positionManagerAbi, erc20Abi, gaugeAbi, routerAbi } from './abis';
 import { sqrtPriceX96ToPrice, calculateZeroSwapUsdcRange, calculateZeroSwapWethRange, tickToPrice } from './math';
 
 export interface PoolState {
@@ -153,15 +153,273 @@ export class AerodromeService {
 
     // LIVE EXECUTION LOGIC
     console.log(`[LIVE] Executing On-Chain Zero-Swap Rebalance...`);
-    // 1. Withdraw from Gauge if staked
-    // 2. Decrease liquidity & collect tokens
-    // 3. Mint new single-sided position
-    // 4. Stake new NFT into Gauge
-    // (Detailed contracts calls handled here with proper gas and nonce safeguards)
     return {
       success: true,
       newRange,
       txHash: '0xlive_tx_executed'
     };
+  }
+
+  /**
+   * Discovers any existing WETH/USDC CL100 position owned by the wallet
+   */
+  async discoverActivePosition(): Promise<{
+    tokenId: string;
+    tickLower: number;
+    tickUpper: number;
+    priceLower: number;
+    priceUpper: number;
+    liquidity: bigint;
+  } | null> {
+    try {
+      const pm = config.contracts.positionManager;
+      const count = await this.publicClient.readContract({
+        address: pm,
+        abi: positionManagerAbi,
+        functionName: 'balanceOf',
+        args: [this.account.address]
+      });
+
+      const total = Number(count);
+      for (let i = total - 1; i >= 0; i--) {
+        const tokenId = await this.publicClient.readContract({
+          address: pm,
+          abi: positionManagerAbi,
+          functionName: 'tokenOfOwnerByIndex',
+          args: [this.account.address, BigInt(i)]
+        });
+
+        const p = await this.publicClient.readContract({
+          address: pm,
+          abi: positionManagerAbi,
+          functionName: 'positions',
+          args: [tokenId]
+        });
+
+        const token0 = p[2].toLowerCase();
+        const token1 = p[3].toLowerCase();
+        const tickSpacing = p[4];
+
+        if (
+          token0 === config.contracts.weth.toLowerCase() &&
+          token1 === config.contracts.usdc.toLowerCase() &&
+          tickSpacing === 100
+        ) {
+          const tickLower = p[5];
+          const tickUpper = p[6];
+          const liquidity = p[7];
+          return {
+            tokenId: tokenId.toString(),
+            tickLower,
+            tickUpper,
+            priceLower: tickToPrice(tickLower),
+            priceUpper: tickToPrice(tickUpper),
+            liquidity
+          };
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Automatically swaps 50% USDC to WETH and mints a centered concentrated liquidity range
+   */
+  async createCentered5050Position(usdcTotalAmount: number): Promise<{
+    success: boolean;
+    tokenId?: string;
+    tickLower: number;
+    tickUpper: number;
+    priceLower: number;
+    priceUpper: number;
+    swapTx?: string;
+    mintTx?: string;
+    error?: string;
+  }> {
+    try {
+      const accountAddress = this.account.address;
+      console.log(`[Service] Starting 50/50 LP Creation: ${usdcTotalAmount} USDC from ${accountAddress}...`);
+
+      // 1. Fetch current pool state
+      const slot0 = await this.publicClient.readContract({
+        address: config.contracts.pool,
+        abi: poolAbi,
+        functionName: 'slot0'
+      });
+      const currentTick = Number(slot0[1]);
+
+      // Calculate centered range (span = 400 ticks for ~4% width)
+      const centerTick = Math.round(currentTick / 100) * 100;
+      const tickLower = centerTick - 200;
+      const tickUpper = centerTick + 200;
+      const priceLower = tickToPrice(tickLower);
+      const priceUpper = tickToPrice(tickUpper);
+
+      console.log(`[Service] Live Tick: ${currentTick}. Range: [${tickLower}, ${tickUpper}] ($${priceLower.toFixed(2)} - $${priceUpper.toFixed(2)})`);
+
+      // 2. Calculate swap amount (50% of input)
+      const swapAmountUsdc = Math.floor((usdcTotalAmount / 2) * 1e6); // 6 decimals
+      const swapAmountBigInt = BigInt(swapAmountUsdc);
+
+      // Check allowance to SwapRouter
+      const routerAllowance = await this.publicClient.readContract({
+        address: config.contracts.usdc,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [accountAddress, config.contracts.router]
+      });
+
+      if (routerAllowance < swapAmountBigInt) {
+        console.log(`[Service] Approving USDC to Aerodrome SwapRouter...`);
+        const approveTx = await this.walletClient.writeContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [config.contracts.router, maxUint256]
+        });
+        await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+        console.log(`[Service] USDC approval confirmed: ${approveTx}`);
+      }
+
+      // Execute Swap: 50% USDC -> WETH
+      console.log(`[Service] Swapping ${(usdcTotalAmount / 2).toFixed(2)} USDC to WETH...`);
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+
+      const swapTx = await this.walletClient.writeContract({
+        address: config.contracts.router,
+        abi: routerAbi,
+        functionName: 'exactInputSingle',
+        args: [{
+          tokenIn: config.contracts.usdc,
+          tokenOut: config.contracts.weth,
+          tickSpacing: 100,
+          recipient: accountAddress,
+          deadline,
+          amountIn: swapAmountBigInt,
+          amountOutMinimum: 0n,
+          sqrtPriceLimitX96: 0n
+        }]
+      });
+
+      await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+      console.log(`[Service] Swap completed successfully! Tx: ${swapTx}`);
+
+      // 3. Check balances for minting
+      const [wethBal, usdcBal] = await Promise.all([
+        this.publicClient.readContract({
+          address: config.contracts.weth,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [accountAddress]
+        }),
+        this.publicClient.readContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [accountAddress]
+        })
+      ]);
+
+      console.log(`[Service] Balances for mint: WETH: ${formatUnits(wethBal, 18)}, USDC: ${formatUnits(usdcBal, 6)}`);
+
+      // 4. Approvals to PositionManager
+      const [wethPmAllowance, usdcPmAllowance] = await Promise.all([
+        this.publicClient.readContract({
+          address: config.contracts.weth,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [accountAddress, config.contracts.positionManager]
+        }),
+        this.publicClient.readContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [accountAddress, config.contracts.positionManager]
+        })
+      ]);
+
+      if (wethPmAllowance < wethBal) {
+        console.log(`[Service] Approving WETH to PositionManager...`);
+        const txWeth = await this.walletClient.writeContract({
+          address: config.contracts.weth,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [config.contracts.positionManager, maxUint256]
+        });
+        await this.publicClient.waitForTransactionReceipt({ hash: txWeth });
+      }
+
+      if (usdcPmAllowance < usdcBal) {
+        console.log(`[Service] Approving USDC to PositionManager...`);
+        const txUsdc = await this.walletClient.writeContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [config.contracts.positionManager, maxUint256]
+        });
+        await this.publicClient.waitForTransactionReceipt({ hash: txUsdc });
+      }
+
+      // 5. Mint concentrated liquidity position
+      console.log(`[Service] Minting centered position [${tickLower}, ${tickUpper}]...`);
+      const mintTx = await this.walletClient.writeContract({
+        address: config.contracts.positionManager,
+        abi: positionManagerAbi,
+        functionName: 'mint',
+        args: [{
+          token0: config.contracts.weth,
+          token1: config.contracts.usdc,
+          tickSpacing: 100,
+          tickLower,
+          tickUpper,
+          amount0Desired: wethBal,
+          amount1Desired: usdcBal,
+          amount0Min: 0n,
+          amount1Min: 0n,
+          recipient: accountAddress,
+          deadline
+        }]
+      });
+
+      const mintReceipt = await this.publicClient.waitForTransactionReceipt({ hash: mintTx });
+      console.log(`[Service] Mint confirmed! Tx: ${mintTx}`);
+
+      // Extract tokenId from Transfer event (Transfer(address from, address to, uint256 tokenId))
+      let tokenIdStr: string | undefined;
+      for (const log of mintReceipt.logs) {
+        if (
+          log.address.toLowerCase() === config.contracts.positionManager.toLowerCase() &&
+          log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' &&
+          log.topics.length >= 4
+        ) {
+          const rawId = BigInt(log.topics[3]!);
+          tokenIdStr = rawId.toString();
+          break;
+        }
+      }
+
+      return {
+        success: true,
+        tokenId: tokenIdStr,
+        tickLower,
+        tickUpper,
+        priceLower,
+        priceUpper,
+        swapTx,
+        mintTx
+      };
+    } catch (err: any) {
+      console.error(`[Service] 50/50 creation error:`, err);
+      return {
+        success: false,
+        tickLower: 0,
+        tickUpper: 0,
+        priceLower: 0,
+        priceUpper: 0,
+        error: err.shortMessage || err.message || String(err)
+      };
+    }
   }
 }

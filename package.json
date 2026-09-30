@@ -7,7 +7,8 @@
     "build": "tsc && node -e \"require('fs').cpSync('src/server/public', 'dist/server/public', {recursive: true})\"",
     "start": "ts-node src/index.ts",
     "dev": "ts-node src/index.ts",
-    "serve": "node dist/index.js"
+    "serve": "node dist/index.js",
+    "create-position": "ts-node src/scripts/create-position.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

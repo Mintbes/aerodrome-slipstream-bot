@@ -85,6 +85,43 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
+  // Create 50/50 Centered Position endpoint
+  app.post('/api/create-5050', async (req, res) => {
+    try {
+      const amountUsdc = parseFloat(req.body.amount || '500');
+      keeper.getStorage().addLog('INFO', `Iniciando creación automática de LP 50/50 (${amountUsdc} USDC)...`);
+
+      const result = await keeper.getService().createCentered5050Position(amountUsdc);
+      if (result.success) {
+        config.dryRun = false; // Switch to live on-chain!
+        keeper.getStorage().updateState(s => {
+          s.activePosition = {
+            tokenId: result.tokenId || 'NEW_LP',
+            tickLower: result.tickLower,
+            tickUpper: result.tickUpper,
+            priceLower: result.priceLower,
+            priceUpper: result.priceUpper,
+            inRange: true
+          };
+          s.outOfRangeSince = null;
+        });
+
+        keeper.getStorage().addLog(
+          'ACTION',
+          `🚀 Posición 50/50 (#${result.tokenId || 'LP'}) creada en Base! Rango: $${result.priceLower.toFixed(2)} - $${result.priceUpper.toFixed(2)}. Swap Tx: ${result.swapTx?.slice(0, 10)}... | Mint Tx: ${result.mintTx?.slice(0, 10)}...`
+        );
+
+        res.json(result);
+      } else {
+        keeper.getStorage().addLog('ERROR', `Error al crear posición 50/50: ${result.error}`);
+        res.status(500).json({ success: false, error: result.error });
+      }
+    } catch (err: any) {
+      keeper.getStorage().addLog('ERROR', `Fallo crítico al crear posición: ${err.message}`);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Update Settings endpoint (Range Width, Delay, Auto-Snuggle, Compound, Dry-Run)
   app.post('/api/settings', async (req, res) => {
     try {

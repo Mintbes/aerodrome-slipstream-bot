@@ -57,8 +57,8 @@
         <button onclick="toggleSettingsModal()" class="px-3 py-1.5 rounded-lg border border-[#233148] text-xs font-semibold text-gray-300 hover:text-white hover:bg-[#162032] transition">
           ⚙️ Ajustes Bot
         </button>
-        <button onclick="triggerRebalance()" class="px-4 py-1.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold text-xs shadow-md transition active:scale-95">
-          + Nuevo Rango
+        <button onclick="openCreateModal()" class="px-4 py-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-black font-extrabold text-xs shadow-md transition active:scale-95 flex items-center gap-1.5">
+          <span>🚀</span> Crear LP 50/50
         </button>
       </div>
     </div>
@@ -346,6 +346,86 @@
     </div>
   </div>
 
+  <!-- Modal: Crear Posición 50/50 Automática -->
+  <div id="create-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#0f1726] border border-[#1e2a3e] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#1c283c] pb-3">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <span>🚀</span> Menú Automático LP 50/50
+        </h3>
+        <button onclick="closeCreateModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Wallet info card -->
+        <div class="p-3.5 rounded-xl bg-[#141d2d] border border-[#233148] flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-400">Wallet Satélite (Base):</p>
+            <p class="text-xs font-mono font-bold text-emerald-400">0xE96d...565d</p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs text-gray-400">Saldo Disponible:</p>
+            <p id="modal-usdc-bal" class="text-sm font-mono font-black text-white">500.00 USDC</p>
+          </div>
+        </div>
+
+        <!-- Amount Input -->
+        <div>
+          <label class="block text-xs text-gray-300 mb-1.5 font-bold uppercase tracking-wider">
+            Cantidad de USDC a depositar:
+          </label>
+          <div class="relative">
+            <input id="input-create-amount" type="number" step="1" value="500" oninput="updateCreatePreview()" class="w-full bg-[#141d2d] border border-[#233148] rounded-xl px-4 py-3 text-lg text-white font-mono font-bold focus:outline-none focus:border-emerald-500">
+            <span class="absolute right-4 top-3.5 text-xs font-bold text-gray-400">USDC</span>
+          </div>
+          <div class="flex gap-2 mt-2">
+            <button onclick="setCreateAmountPercent(0.25)" class="px-3 py-1 bg-[#182335] hover:bg-[#22314a] rounded-lg text-xs font-mono text-gray-300">25%</button>
+            <button onclick="setCreateAmountPercent(0.50)" class="px-3 py-1 bg-[#182335] hover:bg-[#22314a] rounded-lg text-xs font-mono text-gray-300">50%</button>
+            <button onclick="setCreateAmountPercent(1.00)" class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 rounded-lg text-xs font-mono font-bold">100% (Todo)</button>
+          </div>
+        </div>
+
+        <!-- Strategy Preview Box -->
+        <div class="p-4 rounded-xl bg-[#0b121e] border border-[#1b2638] space-y-2 text-xs">
+          <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Plan de Ejecución Automatizado en Base:</p>
+          <div class="flex items-center justify-between text-gray-300">
+            <span>🔄 Swap a WETH (50%):</span>
+            <span id="preview-swap-amount" class="font-mono font-bold text-white">250.00 USDC</span>
+          </div>
+          <div class="flex items-center justify-between text-gray-300">
+            <span>💵 Saldo USDC para LP (50%):</span>
+            <span id="preview-lp-amount" class="font-mono font-bold text-white">250.00 USDC</span>
+          </div>
+          <div class="flex items-center justify-between text-gray-300">
+            <span>🎯 Rango Centrado (4.0%):</span>
+            <span id="preview-range-prices" class="font-mono font-bold text-emerald-400">$2,623 - $2,730</span>
+          </div>
+          <div class="flex items-center justify-between text-gray-300">
+            <span>🟢 Estado Inicial:</span>
+            <span class="font-bold text-emerald-400">In Range (Activo de inmediato)</span>
+          </div>
+        </div>
+
+        <!-- Live Progress Status -->
+        <div id="create-progress-box" class="hidden p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono space-y-1">
+          <p id="create-progress-text" class="font-bold flex items-center gap-2">
+            <span class="animate-spin">⏳</span> Ejecutando transacción en Base...
+          </p>
+          <p class="text-[11px] text-gray-400">Por favor espera unos segundos mientras la red confirma el bloque.</p>
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t border-[#1c283c]">
+        <button onclick="closeCreateModal()" id="btn-cancel-create" class="px-4 py-2.5 rounded-xl bg-[#162133] hover:bg-[#1e2c44] text-xs font-semibold text-gray-300">
+          Cancelar
+        </button>
+        <button onclick="executeCreate5050()" id="btn-submit-create" class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow-lg transition active:scale-98 flex items-center gap-1.5">
+          <span>🚀</span> Ejecutar Depósito 50/50
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="border-t border-[#182234] py-4 text-center text-xs text-gray-500">
     <p>Personal DeFi Liquidity Keeper · Aerodrome Slipstream CL100 · 0% Performance Fees</p>
@@ -353,6 +433,9 @@
 
   <!-- Script logic -->
   <script>
+    let currentPoolPrice = 2665;
+    let currentWalletUsdc = 500;
+
     async function updateDashboard() {
       try {
         const res = await fetch('/api/status');
@@ -360,9 +443,18 @@
 
         const price = data.pool.currentPrice;
         const pos = data.position;
+        currentPoolPrice = price || currentPoolPrice;
+        if (data.pool && data.pool.balances && data.pool.balances.usdc !== undefined) {
+          currentWalletUsdc = data.pool.balances.usdc;
+        }
+        const modalUsdcBal = document.getElementById('modal-usdc-bal');
+        if (modalUsdcBal) {
+          modalUsdcBal.textContent = `${currentWalletUsdc.toFixed(2)} USDC`;
+        }
 
         // KPI Updates
-        document.getElementById('kpi-total-value').textContent = `$${(price > 0 ? (pos.priceLower ? 4335.60 : 0) : 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        const kpiVal = pos.tokenId ? 500.00 : 500.00;
+        document.getElementById('kpi-total-value').textContent = `$${kpiVal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
         document.getElementById('kpi-rebalances-count').textContent = data.rebalancesCount;
         document.getElementById('cfg-rebalances').textContent = data.rebalancesCount;
 
@@ -565,6 +657,103 @@
     function sharePosition() {
       navigator.clipboard.writeText(window.location.href);
       alert('¡Enlace del panel copiado al portapapeles!');
+    }
+
+    function openCreateModal() {
+      const modal = document.getElementById('create-modal');
+      modal.classList.remove('hidden');
+      const input = document.getElementById('input-create-amount');
+      if (!input.value || parseFloat(input.value) <= 0) {
+        input.value = currentWalletUsdc > 0 ? currentWalletUsdc : 500;
+      }
+      updateCreatePreview();
+    }
+
+    function closeCreateModal() {
+      const modal = document.getElementById('create-modal');
+      modal.classList.add('hidden');
+    }
+
+    function setCreateAmountPercent(pct) {
+      const input = document.getElementById('input-create-amount');
+      const total = currentWalletUsdc > 0 ? currentWalletUsdc : 500;
+      const val = Math.floor(total * pct * 100) / 100;
+      input.value = val;
+      updateCreatePreview();
+    }
+
+    function updateCreatePreview() {
+      const input = document.getElementById('input-create-amount');
+      const amt = parseFloat(input.value) || 0;
+      const half = (amt / 2).toFixed(2);
+
+      const swapEl = document.getElementById('preview-swap-amount');
+      const lpEl = document.getElementById('preview-lp-amount');
+      const rangeEl = document.getElementById('preview-range-prices');
+
+      if (swapEl) swapEl.textContent = `${half} USDC`;
+      if (lpEl) lpEl.textContent = `${half} USDC`;
+
+      const p = currentPoolPrice || 2665;
+      const pLow = Math.round(p * 0.98);
+      const pHigh = Math.round(p * 1.02);
+      if (rangeEl) rangeEl.textContent = `$${pLow.toLocaleString('en-US')} - $${pHigh.toLocaleString('en-US')}`;
+    }
+
+    async function executeCreate5050() {
+      const input = document.getElementById('input-create-amount');
+      const amt = parseFloat(input.value) || 0;
+      if (amt < 10) {
+        alert('Por favor introduce una cantidad mínima de 10 USDC.');
+        return;
+      }
+
+      const btnSubmit = document.getElementById('btn-submit-create');
+      const btnCancel = document.getElementById('btn-cancel-create');
+      const progressBox = document.getElementById('create-progress-box');
+      const progressText = document.getElementById('create-progress-text');
+
+      btnSubmit.disabled = true;
+      btnCancel.disabled = true;
+      btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+      progressBox.classList.remove('hidden');
+      progressBox.className = 'p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono space-y-1';
+      progressText.innerHTML = '<span class="animate-spin inline-block mr-1.5">⏳</span> Ejecutando swap y minteo de LP en Aerodrome Base Mainnet...';
+
+      try {
+        const res = await fetch('/api/create-5050', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: amt })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          progressBox.className = 'p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono space-y-1';
+          progressText.innerHTML = `🎉 <b>¡Éxito! Posición LP #${result.tokenId || ''} creada en Base.</b><br><span class="text-[11px] text-gray-300">Rango: $${result.priceLower.toFixed(2)} - $${result.priceUpper.toFixed(2)}</span>`;
+
+          await updateDashboard();
+          setTimeout(() => {
+            closeCreateModal();
+            btnSubmit.disabled = false;
+            btnCancel.disabled = false;
+            btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+            progressBox.classList.add('hidden');
+          }, 3500);
+        } else {
+          progressBox.className = 'p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono space-y-1';
+          progressText.innerHTML = `❌ Error: ${result.error || 'Fallo desconocido al interactuar con el contrato'}`;
+          btnSubmit.disabled = false;
+          btnCancel.disabled = false;
+          btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+      } catch (err) {
+        progressBox.className = 'p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono space-y-1';
+        progressText.innerHTML = `❌ Error de red: ${err.message}`;
+        btnSubmit.disabled = false;
+        btnCancel.disabled = false;
+        btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
     }
 
     updateDashboard();

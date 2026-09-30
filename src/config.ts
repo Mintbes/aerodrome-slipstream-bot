@@ -17,6 +17,8 @@ export interface BotConfig {
     pool: `0x${string}`;
     positionManager: `0x${string}`;
     voter: `0x${string}`;
+    router: `0x${string}`;
+    gauge: `0x${string}`;
   };
 }
 
@@ -41,6 +43,8 @@ export const config: BotConfig = {
     aero: '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
     pool: '0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59', // WETH/USDC CL100
     positionManager: '0x827922686190790b37229fd06084350E74485b72',
-    voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5'
+    voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5',
+    router: '0xBE6D8f0d05cC4be24d5167a3eF062215bE6D18a5',
+    gauge: '0xF33a96b5932D9E9B9A0eDA447AbD8C9d48d2e0c8'
   }
 };
