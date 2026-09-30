@@ -292,6 +292,7 @@ export class AerodromeService {
         address: config.contracts.router,
         abi: routerAbi,
         functionName: 'exactInputSingle',
+        gas: 400000n,
         args: [{
           tokenIn: config.contracts.usdc,
           tokenOut: config.contracts.weth,
@@ -304,7 +305,11 @@ export class AerodromeService {
         }]
       });
 
-      await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+      const swapReceipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+      if (swapReceipt.status !== 'success') {
+        throw new Error(`El swap de USDC a WETH falló en Base (Tx: ${swapTx})`);
+      }
+      await new Promise(r => setTimeout(r, 2000));
       console.log(`[Service] Swap completed successfully! Tx: ${swapTx}`);
 
       // 3. Check balances for minting
@@ -324,6 +329,9 @@ export class AerodromeService {
       ]);
 
       console.log(`[Service] Balances for mint: WETH: ${formatUnits(wethBal, 18)}, USDC: ${formatUnits(usdcBal, 6)}`);
+      if (wethBal === 0n) {
+        throw new Error('No se detectó saldo de WETH tras el swap.');
+      }
 
       // 4. Approvals to PositionManager
       const [wethPmAllowance, usdcPmAllowance] = await Promise.all([
@@ -371,6 +379,7 @@ export class AerodromeService {
         address: config.contracts.positionManager,
         abi: positionManagerAbi,
         functionName: 'mint',
+        gas: 600000n,
         args: [{
           token0: config.contracts.weth,
           token1: config.contracts.usdc,
@@ -387,6 +396,9 @@ export class AerodromeService {
       });
 
       const mintReceipt = await this.publicClient.waitForTransactionReceipt({ hash: mintTx });
+      if (mintReceipt.status !== 'success') {
+        throw new Error(`El minteo de la posición LP falló en Base (Tx: ${mintTx})`);
+      }
       console.log(`[Service] Mint confirmed! Tx: ${mintTx}`);
 
       // Extract tokenId from Transfer event (Transfer(address from, address to, uint256 tokenId))
