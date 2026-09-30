@@ -119,10 +119,15 @@ export function createServer(keeper: KeeperEngine) {
         lpValue: 0
       };
 
-      const b = poolState.balances || { weth: 0, usdc: 0, aero: 0, eth: 0 };
-      const walletEthVal = (b.eth || 0) * currentPrice;
-      const walletWethVal = (b.weth || 0) * currentPrice;
-      const walletUsdcVal = b.usdc || 0;
+      const b = {
+        weth: poolState.wethBalance || 0,
+        usdc: poolState.usdcBalance || 0,
+        aero: poolState.aeroBalance || 0,
+        eth: poolState.ethBalance || 0
+      };
+      const walletEthVal = b.eth * currentPrice;
+      const walletWethVal = b.weth * currentPrice;
+      const walletUsdcVal = b.usdc;
       const walletTotalUsd = walletWethVal + walletUsdcVal + walletEthVal;
       const totalPortfolioValue = totalLpValue + walletTotalUsd;
 
@@ -130,7 +135,7 @@ export function createServer(keeper: KeeperEngine) {
         pool: {
           currentPrice: poolState.currentPrice,
           currentTick: poolState.currentTick,
-          balances: poolState.balances
+          balances: b
         },
         totals: {
           totalPortfolioValue,
