@@ -138,8 +138,8 @@
       </div>
       <div class="flex items-center space-x-2">
         <div class="bg-[#111a2c] border border-[#1e2a3e] rounded-lg p-0.5 flex items-center">
-          <button id="btn-view-full" onclick="setViewMode('full')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-[#1e2a3e] text-white cursor-pointer">Full</button>
-          <button id="btn-view-compact" onclick="setViewMode('compact')" class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer">Compact</button>
+          <button id="btn-view-full" onclick="setViewMode('full')" class="px-2.5 py-1 rounded-md text-xs font-extrabold bg-[#22c55e] text-black cursor-pointer shadow transition">Full</button>
+          <button id="btn-view-compact" onclick="setViewMode('compact')" class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer transition">Compact</button>
         </div>
       </div>
     </div>
@@ -297,22 +297,45 @@
     let currentPoolPrice = 2665;
     let currentWalletUsdc = 500;
     let currentViewMode = 'full';
+    let cardExpandedState = {};
+
+    function updateViewModeButtons() {
+      const btnFull = document.getElementById('btn-view-full');
+      const btnCompact = document.getElementById('btn-view-compact');
+      if (btnFull) {
+        btnFull.className = currentViewMode === 'full' 
+          ? 'px-2.5 py-1 rounded-md text-xs font-extrabold bg-[#22c55e] text-black cursor-pointer shadow transition' 
+          : 'px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer transition';
+      }
+      if (btnCompact) {
+        btnCompact.className = currentViewMode === 'compact' 
+          ? 'px-2.5 py-1 rounded-md text-xs font-extrabold bg-[#22c55e] text-black cursor-pointer shadow transition' 
+          : 'px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer transition';
+      }
+    }
 
     function setViewMode(mode) {
       currentViewMode = mode;
-      const btnFull = document.getElementById('btn-view-full');
-      const btnCompact = document.getElementById('btn-view-compact');
-      if (btnFull) btnFull.className = mode === 'full' 
-        ? 'px-2.5 py-1 rounded-md text-xs font-bold bg-[#1e2a3e] text-white cursor-pointer' 
-        : 'px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer';
-      if (btnCompact) btnCompact.className = mode === 'compact' 
-        ? 'px-2.5 py-1 rounded-md text-xs font-bold bg-[#1e2a3e] text-white cursor-pointer' 
-        : 'px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer';
+      cardExpandedState = {};
+      updateViewModeButtons();
       if (window.currentStatusData) {
         const positions = (window.currentStatusData.positions && window.currentStatusData.positions.length > 0)
           ? window.currentStatusData.positions
           : [window.currentStatusData.position];
-        renderPositions(positions, window.currentStatusData.pool.currentPrice);
+        renderPositions(positions, window.currentStatusData.pool?.currentPrice || currentPoolPrice);
+      }
+    }
+
+    function toggleCardExpand(tokenId) {
+      const isCurrentlyExpanded = cardExpandedState[tokenId] !== undefined
+        ? cardExpandedState[tokenId]
+        : (currentViewMode === 'full');
+      cardExpandedState[tokenId] = !isCurrentlyExpanded;
+      if (window.currentStatusData) {
+        const positions = (window.currentStatusData.positions && window.currentStatusData.positions.length > 0)
+          ? window.currentStatusData.positions
+          : [window.currentStatusData.position];
+        renderPositions(positions, window.currentStatusData.pool?.currentPrice || currentPoolPrice);
       }
     }
 
@@ -417,7 +440,9 @@
           ? `<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold font-mono">⚡ Staked en Gauge (${(pos.apr || 183.3).toFixed(1)}% APR)</span>`
           : `<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-bold font-mono">Wallet (Trading Fees)</span>`;
 
-        const isCompact = currentViewMode === 'compact';
+        const isExpanded = cardExpandedState[tokenId] !== undefined
+          ? cardExpandedState[tokenId]
+          : (currentViewMode === 'full');
 
         return `
           <div id="card-pos-${tokenId}" class="bg-[#0e1626] border border-[#1a2538] rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
@@ -444,7 +469,7 @@
             </div>
 
             <!-- Position Metrics 3-Column Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-[#182335]">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 ${isExpanded ? 'border-b border-[#182335]' : ''}">
               <div>
                 <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
                 <h4 class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$${lpVal.toFixed(2)}</h4>
@@ -467,7 +492,7 @@
               </div>
             </div>
 
-            ${!isCompact ? `
+            ${isExpanded ? `
               <!-- Price Range Graphical Slider -->
               <div class="p-6 border-b border-[#182335] space-y-4">
                 <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Price Range (USDC per WETH)</p>
@@ -547,30 +572,38 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Notification Banner -->
+              ${bannerHtml}
+
+              <!-- Action Buttons Row -->
+              <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button onclick="claimRewardsForToken('${tokenId}')" id="btn-claim-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
+                  Claim AERO
+                </button>
+
+                <button onclick="triggerRebalanceForToken('${tokenId}')" id="btn-rebalance-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
+                  Snuggle Rebalance
+                </button>
+              </div>
+
+              <!-- Secondary Buttons Row (Share & Withdraw) -->
+              <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                  <span>↑</span> Share
+                </button>
+                <button onclick="withdrawPositionToken('${tokenId}')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition cursor-pointer">
+                  Withdraw
+                </button>
+              </div>
             ` : ''}
 
-            <!-- Notification Banner -->
-            ${bannerHtml}
-
-            <!-- Action Buttons Row -->
-            <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button onclick="claimRewardsForToken('${tokenId}')" id="btn-claim-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
-                Claim AERO
-              </button>
-
-              <button onclick="triggerRebalanceForToken('${tokenId}')" id="btn-rebalance-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
-                Snuggle Rebalance
-              </button>
-            </div>
-
-            <!-- Secondary Buttons Row (Share & Withdraw) -->
-            <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
-                <span>↑</span> Share
-              </button>
-              <button onclick="withdrawPositionToken('${tokenId}')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition cursor-pointer">
-                Withdraw
-              </button>
+            <!-- Bottom Collapse / Expand Bar (Snuggle Style) -->
+            <div class="border-t border-[#182335]/60 bg-[#0a111e] hover:bg-[#111c2e] transition cursor-pointer py-2.5 text-center select-none" onclick="toggleCardExpand('${tokenId}')">
+              <span class="text-xs font-bold text-gray-400 hover:text-gray-200 transition inline-flex items-center gap-1.5">
+                <span>${isExpanded ? '▲' : '▼'}</span>
+                <span>${isExpanded ? 'Collapse' : 'Expand'}</span>
+              </span>
             </div>
 
           </div>
