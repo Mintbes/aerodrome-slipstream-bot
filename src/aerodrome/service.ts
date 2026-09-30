@@ -280,6 +280,7 @@ export class AerodromeService {
           args: [config.contracts.router, maxUint256]
         });
         await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+        await new Promise(r => setTimeout(r, 2000));
         console.log(`[Service] USDC approval confirmed: ${approveTx}`);
       }
 
@@ -349,6 +350,7 @@ export class AerodromeService {
           args: [config.contracts.positionManager, maxUint256]
         });
         await this.publicClient.waitForTransactionReceipt({ hash: txWeth });
+        await new Promise(r => setTimeout(r, 2000));
       }
 
       if (usdcPmAllowance < usdcBal) {
@@ -360,6 +362,7 @@ export class AerodromeService {
           args: [config.contracts.positionManager, maxUint256]
         });
         await this.publicClient.waitForTransactionReceipt({ hash: txUsdc });
+        await new Promise(r => setTimeout(r, 2000));
       }
 
       // 5. Mint concentrated liquidity position
