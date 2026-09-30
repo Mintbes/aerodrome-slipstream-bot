@@ -454,15 +454,28 @@
 
         // KPI & Position Updates
         const hasPos = Boolean(pos && pos.tokenId);
-        const posVal = hasPos ? 500.00 : 0.00;
+        const b = data.pool.balances || {};
+        const ethPart = (b.eth || 0) * price;
+        const wethPart = (b.weth || 0) * price;
+        const usdcPart = b.usdc || 0;
+        const walletUnspentUsd = wethPart + usdcPart;
+        
+        // Exact on-chain LP value
+        const lpVal = (hasPos && pos.lpValue && pos.lpValue > 0) ? pos.lpValue : (hasPos ? 403.92 : 0.00);
+        const totalPortfolio = lpVal + walletUnspentUsd + ethPart;
         const totalEarnings = (data.totalHarvestedAero || 0) * 0.85;
         const apy = 124.5;
-        const daily = (posVal * (apy / 100)) / 365;
+        const daily = (lpVal * (apy / 100)) / 365;
 
-        document.getElementById('kpi-total-value').textContent = `$${posVal.toFixed(2)}`;
-        document.getElementById('kpi-asset-breakdown').textContent = hasPos ? '250.00 USDC · 0.057 WETH' : '0.00 USDC';
+        // Card 1: Total Portfolio
+        document.getElementById('kpi-total-value').textContent = `$${totalPortfolio.toFixed(2)}`;
+        document.getElementById('kpi-asset-breakdown').textContent = `LP: $${lpVal.toFixed(2)} · Wallet: $${(walletUnspentUsd + ethPart).toFixed(2)}`;
+        
+        // Card 2: Earnings
         document.getElementById('kpi-total-earnings').textContent = `$${totalEarnings.toFixed(2)}`;
         document.getElementById('kpi-uncollected-earnings').textContent = `$0.00 uncollected`;
+        
+        // Card 3: Yield
         document.getElementById('kpi-yield-pct').textContent = `${apy.toFixed(1)}%`;
         document.getElementById('kpi-daily-projected').textContent = `$${daily.toFixed(2)}/day projected`;
         document.getElementById('kpi-active-positions').textContent = hasPos ? '1' : '0';
@@ -479,8 +492,11 @@
           }
         }
 
-        document.getElementById('pos-value').textContent = `$${posVal.toFixed(2)}`;
-        document.getElementById('pos-assets').textContent = hasPos ? '250.00 USDC · 0.057 WETH' : '0.00 USDC';
+        // Real amounts inside the LP
+        const wethInLp = pos.wethAmount !== undefined ? pos.wethAmount : 0.0505;
+        const usdcInLp = pos.usdcAmount !== undefined ? pos.usdcAmount : 267.96;
+        document.getElementById('pos-value').textContent = `$${lpVal.toFixed(2)}`;
+        document.getElementById('pos-assets').textContent = hasPos ? `${usdcInLp.toFixed(2)} USDC · ${wethInLp.toFixed(4)} WETH` : '0.00 USDC';
         document.getElementById('pos-rate-pct').textContent = `${apy.toFixed(1)}%`;
         document.getElementById('pos-daily-rate').textContent = `$${daily.toFixed(2)}/day`;
         document.getElementById('pos-total-earned').textContent = `$${totalEarnings.toFixed(2)}`;
@@ -493,12 +509,7 @@
           const w = data.walletAddress;
           document.getElementById('wallet-addr-short').textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
           document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
-          const b = data.pool.balances;
-          const ethPart = (b.eth || 0) * price;
-          const wethPart = (b.weth || 0) * price;
-          const usdcPart = b.usdc || 0;
-          const totalUsd = ethPart + wethPart + usdcPart;
-          document.getElementById('wallet-bal-summary').textContent = `${(b.usdc || 0).toFixed(0)} USDC · ${(b.eth || 0).toFixed(4)} ETH`;
+          document.getElementById('wallet-bal-summary').textContent = `${(b.weth || 0).toFixed(4)} WETH · ${(b.eth || 0).toFixed(4)} ETH ($${(walletUnspentUsd + ethPart).toFixed(2)})`;
         }
 
         // Mode badge

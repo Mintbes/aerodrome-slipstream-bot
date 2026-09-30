@@ -29,6 +29,17 @@ export function createServer(keeper: KeeperEngine) {
         remainingDelaySec = Math.max(0, config.rebalanceDelaySeconds - elapsedSec);
       }
 
+      let positionData: any = { ...botState.activePosition };
+      if (botState.activePosition && botState.activePosition.tokenId) {
+        const amounts = await keeper.getService().getPositionAmounts(botState.activePosition.tokenId, poolState.currentPrice);
+        positionData = {
+          ...positionData,
+          wethAmount: amounts.wethAmount,
+          usdcAmount: amounts.usdcAmount,
+          lpValue: amounts.lpValueUsd
+        };
+      }
+
       res.json({
         pool: {
           currentPrice: poolState.currentPrice,
@@ -40,7 +51,7 @@ export function createServer(keeper: KeeperEngine) {
             eth: poolState.ethBalance
           }
         },
-        position: botState.activePosition,
+        position: positionData,
         outOfRangeSince: botState.outOfRangeSince,
         remainingDelaySec,
         rebalancesCount: botState.rebalancesCount,

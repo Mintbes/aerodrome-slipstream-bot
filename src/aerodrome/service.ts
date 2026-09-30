@@ -460,4 +460,53 @@ export class AerodromeService {
       };
     }
   }
+
+  /**
+   * Reads exact on-chain liquidity and calculates real WETH and USDC deposited in the position
+   */
+  async getPositionAmounts(tokenId: string, currentPrice: number): Promise<{ wethAmount: number; usdcAmount: number; lpValueUsd: number }> {
+    try {
+      const pos = await this.publicClient.readContract({
+        address: config.contracts.positionManager,
+        abi: positionManagerAbi,
+        functionName: 'positions',
+        args: [BigInt(tokenId)]
+      });
+      const L = Number(pos[7]); // liquidity
+      if (!L || L === 0) return { wethAmount: 0, usdcAmount: 0, lpValueUsd: 0 };
+
+      const tickLower = pos[5];
+      const tickUpper = pos[6];
+      const slot0 = await this.publicClient.readContract({
+        address: config.contracts.pool,
+        abi: poolAbi,
+        functionName: 'slot0'
+      });
+      const sqrtPriceX96 = Number(slot0[0]);
+      const raw_sqrtP = sqrtPriceX96 / (2 ** 96);
+      const raw_low = Math.sqrt(1.0001 ** tickLower);
+      const raw_up = Math.sqrt(1.0001 ** tickUpper);
+
+      let raw_amount0 = 0;
+      let raw_amount1 = 0;
+
+      if (raw_sqrtP <= raw_low) {
+        raw_amount0 = L * (raw_up - raw_low) / (raw_low * raw_up);
+      } else if (raw_sqrtP < raw_up) {
+        raw_amount0 = L * (raw_up - raw_sqrtP) / (raw_sqrtP * raw_up);
+        raw_amount1 = L * (raw_sqrtP - raw_low);
+      } else {
+        raw_amount1 = L * (raw_up - raw_low);
+      }
+
+      const wethAmount = raw_amount0 / 1e18;
+      const usdcAmount = raw_amount1 / 1e6;
+      const lpValueUsd = (wethAmount * currentPrice) + usdcAmount;
+
+      return { wethAmount, usdcAmount, lpValueUsd };
+    } catch (e) {
+      console.error('[Service] Error reading position amounts:', e);
+      return { wethAmount: 0, usdcAmount: 0, lpValueUsd: 0 };
+    }
+  }
 }
