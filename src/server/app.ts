@@ -33,12 +33,18 @@ export function createServer(keeper: KeeperEngine) {
       let uncollectedFeesUsd = 0;
       let uncollectedWeth = 0;
       let uncollectedUsdc = 0;
+      let uncollectedAero = 0;
+      let isStaked = true;
+      let aprPct = 183.3;
 
       if (botState.activePosition && botState.activePosition.tokenId) {
         const amounts = await keeper.getService().getPositionAmounts(botState.activePosition.tokenId, poolState.currentPrice);
         uncollectedFeesUsd = amounts.uncollectedFeesUsd;
         uncollectedWeth = amounts.uncollectedWeth;
         uncollectedUsdc = amounts.uncollectedUsdc;
+        uncollectedAero = amounts.uncollectedAero;
+        isStaked = amounts.isStakedInGauge;
+        aprPct = amounts.apr || 183.3;
         positionData = {
           ...positionData,
           wethAmount: amounts.wethAmount,
@@ -46,13 +52,14 @@ export function createServer(keeper: KeeperEngine) {
           lpValue: amounts.lpValueUsd,
           uncollectedWeth: amounts.uncollectedWeth,
           uncollectedUsdc: amounts.uncollectedUsdc,
-          uncollectedFeesUsd: amounts.uncollectedFeesUsd
+          uncollectedAero: amounts.uncollectedAero,
+          uncollectedFeesUsd: amounts.uncollectedFeesUsd,
+          isStakedInGauge: isStaked
         };
       }
 
-      const collectedFeesUsd = (botState.totalHarvestedAero || 0) * 0.85;
+      const collectedFeesUsd = (botState.totalHarvestedAero || 0) * 0.81;
       const totalEarnedUsd = collectedFeesUsd + uncollectedFeesUsd;
-      const aprPct = 118.5; // Realistic Aerodrome Slipstream WETH/USDC CL100 APR
 
       res.json({
         pool: {
@@ -71,9 +78,11 @@ export function createServer(keeper: KeeperEngine) {
           uncollectedUsd: uncollectedFeesUsd,
           uncollectedWeth,
           uncollectedUsdc,
+          uncollectedAero,
           totalEarnedUsd
         },
         apr: aprPct,
+        isStaked,
         outOfRangeSince: botState.outOfRangeSince,
         remainingDelaySec,
         rebalancesCount: botState.rebalancesCount,
@@ -174,13 +183,57 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
-  // Claim AERO endpoint
+  // Live Claim AERO endpoint
   app.post('/api/claim', async (req, res) => {
     try {
-      keeper.getStorage().addLog('ACTION', 'Claiming pending AERO rewards...');
-      // Simulated or live claim
-      keeper.getStorage().addLog('ACTION', 'AERO rewards claimed successfully to wallet.');
-      res.json({ success: true });
+      const botState = keeper.getStorage().getState();
+      const tokenId = botState.activePosition?.tokenId;
+      if (!tokenId) {
+        return res.status(400).json({ error: 'No hay posición activa para reclamar' });
+      }
+
+      keeper.getStorage().addLog('ACTION', `Iniciando reclamo de recompensas AERO del Gauge para NFT #${tokenId}...`);
+      const result = await keeper.getService().claimAeroRewards(tokenId);
+
+      if (result.success) {
+        keeper.getStorage().updateState(s => {
+          s.totalHarvestedAero = (s.totalHarvestedAero || 0) + (result.claimedAero || 0);
+        });
+        keeper.getStorage().addLog('ACTION', `🎉 ¡${(result.claimedAero || 0).toFixed(4)} AERO reclamados a tu wallet! Tx: ${result.txHash?.slice(0, 10)}...`);
+        res.json({ success: true, txHash: result.txHash, claimedAero: result.claimedAero });
+      } else {
+        keeper.getStorage().addLog('ERROR', `Error al reclamar AERO: ${result.error}`);
+        res.status(500).json({ success: false, error: result.error });
+      }
+    } catch (err: any) {
+      keeper.getStorage().addLog('ERROR', `Fallo al reclamar AERO: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Stake into Gauge endpoint
+  app.post('/api/stake', async (req, res) => {
+    try {
+      const botState = keeper.getStorage().getState();
+      const tokenId = botState.activePosition?.tokenId;
+      if (!tokenId) return res.status(400).json({ error: 'No active position' });
+
+      const result = await keeper.getService().stakePositionInGauge(tokenId);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Unstake from Gauge endpoint
+  app.post('/api/unstake', async (req, res) => {
+    try {
+      const botState = keeper.getStorage().getState();
+      const tokenId = botState.activePosition?.tokenId;
+      if (!tokenId) return res.status(400).json({ error: 'No active position' });
+
+      const result = await keeper.getService().withdrawPositionFromGauge(tokenId);
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

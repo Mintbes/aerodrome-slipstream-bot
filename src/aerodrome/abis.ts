@@ -27,7 +27,8 @@ export const positionManagerAbi = parseAbi([
   'function balanceOf(address owner) external view returns (uint256)',
   'function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256)',
   'function approve(address to, uint256 tokenId) external',
-  'function setApprovalForAll(address operator, bool approved) external'
+  'function setApprovalForAll(address operator, bool approved) external',
+  'function getApproved(uint256 tokenId) external view returns (address)'
 ]);
 
 export const routerAbi = parseAbi([
@@ -39,5 +40,8 @@ export const gaugeAbi = parseAbi([
   'function deposit(uint256 tokenId) external',
   'function withdraw(uint256 tokenId) external',
   'function getReward(uint256 tokenId) external',
-  'function earned(address account, uint256 tokenId) external view returns (uint256)'
+  'function earned(address account, uint256 tokenId) external view returns (uint256)',
+  'function stakedContains(address account, uint256 tokenId) external view returns (bool)',
+  'function stakedLength(address account) external view returns (uint256)',
+  'function rewardRate() external view returns (uint256)'
 ]);

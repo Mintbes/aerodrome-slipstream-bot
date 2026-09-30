@@ -168,8 +168,7 @@
           <h4 id="pos-total-earned" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$0.00</h4>
           <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-0.5">
             <p id="pos-collected">├ $0.00 collected</p>
-            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.00 uncollected</span></p>
-            <p id="pos-tokens-detail" class="text-[11px] text-gray-400 pl-3">0.0000 USDC · 0.000000 WETH</p>
+            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.00 uncollected (0.00 AERO)</span></p>
           </div>
         </div>
       </div>
@@ -508,7 +507,10 @@
         const tokenLabel = document.getElementById('pos-token-label');
         if (tokenLabel) {
           if (hasPos) {
-            tokenLabel.innerHTML = `<a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${pos.tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white">#${pos.tokenId} ↗</a> · <span class="text-emerald-400 font-semibold">Activo</span>`;
+            const gaugeBadge = pos.isStakedInGauge || data.isStaked
+              ? `<span class="ml-1.5 text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold font-mono">⚡ Staked en Gauge (183.3% APR)</span>`
+              : `<span class="ml-1.5 text-[11px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-bold font-mono">Wallet (Trading Fees)</span>`;
+            tokenLabel.innerHTML = `<a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${pos.tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white">#${pos.tokenId} ↗</a> · <span class="text-emerald-400 font-semibold">Activo</span> ${gaugeBadge}`;
           } else {
             tokenLabel.textContent = 'Sin posición activa';
           }
@@ -524,13 +526,16 @@
         document.getElementById('pos-total-earned').textContent = formatMoney(totalEarned);
         document.getElementById('pos-collected').textContent = `├ ${formatMoney(collectedUsd)} collected`;
         
+        // Uncollected format exactly like Snuggle: "$0.01 uncollected (0.01 AERO)"
         const posUncollected = document.getElementById('pos-uncollected');
         if (posUncollected) {
-          posUncollected.textContent = `${formatMoney(uncollectedUsd)} uncollected`;
-        }
-        const posTokensDetail = document.getElementById('pos-tokens-detail');
-        if (posTokensDetail) {
-          posTokensDetail.textContent = `${uncollectedUsdc.toFixed(4)} USDC · ${uncollectedWeth.toFixed(6)} WETH`;
+          const aeroCount = (data.earnings && typeof data.earnings.uncollectedAero === 'number')
+            ? data.earnings.uncollectedAero
+            : (pos.uncollectedAero || 0);
+          const aeroStr = (aeroCount > 0)
+            ? ` (${aeroCount < 0.01 ? aeroCount.toFixed(4) : aeroCount.toFixed(2)} AERO)`
+            : '';
+          posUncollected.textContent = `${formatMoney(uncollectedUsd)} uncollected${aeroStr}`;
         }
 
         // Wallet pill
@@ -652,8 +657,16 @@
       btn.disabled = true;
       btn.textContent = 'Cobrando...';
       try {
-        await fetch('/api/claim', { method: 'POST' });
+        const res = await fetch('/api/claim', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          alert(`🎉 ¡Recompensa de ${json.claimedAero ? json.claimedAero.toFixed(4) : ''} AERO reclamada con éxito a tu wallet! Tx: ${json.txHash?.slice(0, 10)}...`);
+        } else {
+          alert(`Error al reclamar: ${json.error || 'Fallo desconocido'}`);
+        }
         await updateDashboard();
+      } catch (err) {
+        alert('Error al comunicar con el bot: ' + err.message);
       } finally {
         btn.disabled = false;
         btn.textContent = 'Claim AERO';

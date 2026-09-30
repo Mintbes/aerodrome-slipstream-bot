@@ -470,7 +470,10 @@ export class AerodromeService {
     lpValueUsd: number;
     uncollectedWeth: number;
     uncollectedUsdc: number;
+    uncollectedAero: number;
     uncollectedFeesUsd: number;
+    isStakedInGauge: boolean;
+    apr: number;
   }> {
     try {
       const pos = await this.publicClient.readContract({
@@ -487,7 +490,10 @@ export class AerodromeService {
           lpValueUsd: 0,
           uncollectedWeth: 0,
           uncollectedUsdc: 0,
-          uncollectedFeesUsd: 0
+          uncollectedAero: 0,
+          uncollectedFeesUsd: 0,
+          isStakedInGauge: false,
+          apr: 183.3
         };
       }
 
@@ -519,31 +525,63 @@ export class AerodromeService {
       const usdcAmount = raw_amount1 / 1e6;
       const lpValueUsd = (wethAmount * currentPrice) + usdcAmount;
 
-      // Simulate collect to get real on-chain uncollected trading fees
+      // Check if position is staked in Gauge (Snuggle mode)
+      let isStakedInGauge = false;
+      let uncollectedAero = 0;
       let uncollectedWeth = 0;
       let uncollectedUsdc = 0;
+      let uncollectedFeesUsd = 0;
+      let apr = 183.3;
+
       try {
-        const collectSim = await this.publicClient.simulateContract({
-          address: config.contracts.positionManager,
-          abi: positionManagerAbi,
-          functionName: 'collect',
-          args: [{
-            tokenId: BigInt(tokenId),
-            recipient: this.account.address,
-            amount0Max: 340282366920938463463374607431768211455n, // type(uint128).max
-            amount1Max: 340282366920938463463374607431768211455n
-          }],
-          account: this.account.address
+        isStakedInGauge = await this.publicClient.readContract({
+          address: config.contracts.gauge,
+          abi: gaugeAbi,
+          functionName: 'stakedContains',
+          args: [this.account.address, BigInt(tokenId)]
         });
-        uncollectedWeth = Number(collectSim.result[0]) / 1e18;
-        uncollectedUsdc = Number(collectSim.result[1]) / 1e6;
-      } catch (simErr) {
-        // Fallback to tokensOwed if simulation fails
-        uncollectedWeth = Number(pos[10]) / 1e18;
-        uncollectedUsdc = Number(pos[11]) / 1e6;
+      } catch {
+        isStakedInGauge = false;
       }
 
-      const uncollectedFeesUsd = (uncollectedWeth * currentPrice) + uncollectedUsdc;
+      if (isStakedInGauge) {
+        try {
+          const earnedWei = await this.publicClient.readContract({
+            address: config.contracts.gauge,
+            abi: gaugeAbi,
+            functionName: 'earned',
+            args: [this.account.address, BigInt(tokenId)]
+          });
+          uncollectedAero = Number(formatUnits(earnedWei, 18));
+          uncollectedFeesUsd = uncollectedAero * 0.81;
+          apr = 183.3;
+        } catch (simErr) {
+          console.error('[Service] Error reading gauge earned:', simErr);
+        }
+      } else {
+        // Unstaked: simulate collect to get real on-chain uncollected trading fees
+        try {
+          const collectSim = await this.publicClient.simulateContract({
+            address: config.contracts.positionManager,
+            abi: positionManagerAbi,
+            functionName: 'collect',
+            args: [{
+              tokenId: BigInt(tokenId),
+              recipient: this.account.address,
+              amount0Max: 340282366920938463463374607431768211455n,
+              amount1Max: 340282366920938463463374607431768211455n
+            }],
+            account: this.account.address
+          });
+          uncollectedWeth = Number(collectSim.result[0]) / 1e18;
+          uncollectedUsdc = Number(collectSim.result[1]) / 1e6;
+        } catch (simErr) {
+          uncollectedWeth = Number(pos[10]) / 1e18;
+          uncollectedUsdc = Number(pos[11]) / 1e6;
+        }
+        uncollectedFeesUsd = (uncollectedWeth * currentPrice) + uncollectedUsdc;
+        apr = 118.5;
+      }
 
       return {
         wethAmount,
@@ -551,7 +589,10 @@ export class AerodromeService {
         lpValueUsd,
         uncollectedWeth,
         uncollectedUsdc,
-        uncollectedFeesUsd
+        uncollectedAero,
+        uncollectedFeesUsd,
+        isStakedInGauge,
+        apr
       };
     } catch (e) {
       console.error('[Service] Error reading position amounts:', e);
@@ -561,8 +602,126 @@ export class AerodromeService {
         lpValueUsd: 0,
         uncollectedWeth: 0,
         uncollectedUsdc: 0,
-        uncollectedFeesUsd: 0
+        uncollectedAero: 0,
+        uncollectedFeesUsd: 0,
+        isStakedInGauge: false,
+        apr: 183.3
       };
+    }
+  }
+
+  /**
+   * Stake an LP position into Aerodrome Gauge (enables ~183% AERO emissions)
+   */
+  async stakePositionInGauge(tokenId: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      console.log(`[Service] Staking NFT #${tokenId} into Gauge ${config.contracts.gauge}...`);
+      const tokenIdBigInt = BigInt(tokenId);
+
+      const approved = await this.publicClient.readContract({
+        address: config.contracts.positionManager,
+        abi: positionManagerAbi,
+        functionName: 'getApproved',
+        args: [tokenIdBigInt]
+      });
+
+      if (approved.toLowerCase() !== config.contracts.gauge.toLowerCase()) {
+        console.log(`[Service] Approving NFT #${tokenId} to Gauge...`);
+        const approveTx = await this.walletClient.writeContract({
+          address: config.contracts.positionManager,
+          abi: positionManagerAbi,
+          functionName: 'approve',
+          gas: 100000n,
+          args: [config.contracts.gauge, tokenIdBigInt]
+        });
+        await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+        await new Promise(r => setTimeout(r, 2000));
+      }
+
+      const depositTx = await this.walletClient.writeContract({
+        address: config.contracts.gauge,
+        abi: gaugeAbi,
+        functionName: 'deposit',
+        gas: 700000n,
+        args: [tokenIdBigInt]
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: depositTx });
+      if (receipt.status !== 'success') {
+        throw new Error(`Failed to deposit into gauge (Tx: ${depositTx})`);
+      }
+
+      console.log(`[Service] Successfully staked NFT #${tokenId} in Gauge! Tx: ${depositTx}`);
+      return { success: true, txHash: depositTx };
+    } catch (err: any) {
+      console.error(`[Service] Staking in Gauge error:`, err);
+      return { success: false, error: err.shortMessage || err.message || String(err) };
+    }
+  }
+
+  /**
+   * Withdraw an LP position from Aerodrome Gauge (unstake)
+   */
+  async withdrawPositionFromGauge(tokenId: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      console.log(`[Service] Withdrawing NFT #${tokenId} from Gauge...`);
+      const tokenIdBigInt = BigInt(tokenId);
+
+      const withdrawTx = await this.walletClient.writeContract({
+        address: config.contracts.gauge,
+        abi: gaugeAbi,
+        functionName: 'withdraw',
+        gas: 500000n,
+        args: [tokenIdBigInt]
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: withdrawTx });
+      if (receipt.status !== 'success') {
+        throw new Error(`Failed to withdraw from gauge (Tx: ${withdrawTx})`);
+      }
+
+      console.log(`[Service] Successfully withdrawn NFT #${tokenId} from Gauge! Tx: ${withdrawTx}`);
+      return { success: true, txHash: withdrawTx };
+    } catch (err: any) {
+      console.error(`[Service] Withdraw from Gauge error:`, err);
+      return { success: false, error: err.shortMessage || err.message || String(err) };
+    }
+  }
+
+  /**
+   * Claim accumulated AERO rewards from Gauge
+   */
+  async claimAeroRewards(tokenId: string): Promise<{ success: boolean; txHash?: string; claimedAero?: number; error?: string }> {
+    try {
+      console.log(`[Service] Claiming AERO rewards for NFT #${tokenId}...`);
+      const tokenIdBigInt = BigInt(tokenId);
+
+      const earnedWei = await this.publicClient.readContract({
+        address: config.contracts.gauge,
+        abi: gaugeAbi,
+        functionName: 'earned',
+        args: [this.account.address, tokenIdBigInt]
+      });
+      const claimedAero = Number(formatUnits(earnedWei, 18));
+
+      const claimTx = await this.walletClient.writeContract({
+        address: config.contracts.gauge,
+        abi: gaugeAbi,
+        functionName: 'getReward',
+        gas: 300000n,
+        args: [tokenIdBigInt]
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: claimTx });
+      if (receipt.status !== 'success') {
+        throw new Error(`Failed to claim AERO rewards (Tx: ${claimTx})`);
+      }
+
+      console.log(`[Service] Successfully claimed ${claimedAero.toFixed(4)} AERO! Tx: ${claimTx}`);
+      return { success: true, txHash: claimTx, claimedAero };
+    } catch (err: any) {
+      console.error(`[Service] Claim AERO error:`, err);
+      return { success: false, error: err.shortMessage || err.message || String(err) };
     }
   }
 }
