@@ -242,12 +242,26 @@ export class AerodromeService {
       const accountAddress = this.account.address;
       console.log(`[Service] Starting 50/50 LP Creation: ${usdcTotalAmount} USDC from ${accountAddress}...`);
 
-      // 1. Fetch current pool state
-      const slot0 = await this.publicClient.readContract({
-        address: config.contracts.pool,
-        abi: poolAbi,
-        functionName: 'slot0'
-      });
+      // 1. Fetch current pool state and existing balances
+      const [slot0, initialWeth, initialUsdc] = await Promise.all([
+        this.publicClient.readContract({
+          address: config.contracts.pool,
+          abi: poolAbi,
+          functionName: 'slot0'
+        }),
+        this.publicClient.readContract({
+          address: config.contracts.weth,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [accountAddress]
+        }),
+        this.publicClient.readContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [accountAddress]
+        })
+      ]);
       const currentTick = Number(slot0[1]);
 
       // Calculate centered range (span = 400 ticks for ~4% width)
@@ -259,58 +273,65 @@ export class AerodromeService {
 
       console.log(`[Service] Live Tick: ${currentTick}. Range: [${tickLower}, ${tickUpper}] ($${priceLower.toFixed(2)} - $${priceUpper.toFixed(2)})`);
 
-      // 2. Calculate swap amount (50% of input)
-      const swapAmountUsdc = Math.floor((usdcTotalAmount / 2) * 1e6); // 6 decimals
-      const swapAmountBigInt = BigInt(swapAmountUsdc);
+      let swapTx: `0x${string}` | undefined;
 
-      // Check allowance to SwapRouter
-      const routerAllowance = await this.publicClient.readContract({
-        address: config.contracts.usdc,
-        abi: erc20Abi,
-        functionName: 'allowance',
-        args: [accountAddress, config.contracts.router]
-      });
+      // 2. Check if swap is needed or if 50/50 is already present in wallet
+      if (initialWeth >= parseUnits('0.01', 18) && initialUsdc >= parseUnits('10', 6)) {
+        console.log(`[Service] Wallet already holds ${formatUnits(initialWeth, 18)} WETH and ${formatUnits(initialUsdc, 6)} USDC. Skipping swap!`);
+      } else {
+        // Calculate swap amount (50% of input)
+        const swapAmountUsdc = Math.floor((usdcTotalAmount / 2) * 1e6); // 6 decimals
+        const swapAmountBigInt = BigInt(swapAmountUsdc);
 
-      if (routerAllowance < swapAmountBigInt) {
-        console.log(`[Service] Approving USDC to Aerodrome SwapRouter...`);
-        const approveTx = await this.walletClient.writeContract({
+        // Check allowance to SwapRouter
+        const routerAllowance = await this.publicClient.readContract({
           address: config.contracts.usdc,
           abi: erc20Abi,
-          functionName: 'approve',
-          args: [config.contracts.router, maxUint256]
+          functionName: 'allowance',
+          args: [accountAddress, config.contracts.router]
         });
-        await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+
+        if (routerAllowance < swapAmountBigInt) {
+          console.log(`[Service] Approving USDC to Aerodrome SwapRouter...`);
+          const approveTx = await this.walletClient.writeContract({
+            address: config.contracts.usdc,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [config.contracts.router, maxUint256]
+          });
+          await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+          await new Promise(r => setTimeout(r, 2000));
+          console.log(`[Service] USDC approval confirmed: ${approveTx}`);
+        }
+
+        // Execute Swap: 50% USDC -> WETH
+        console.log(`[Service] Swapping ${(usdcTotalAmount / 2).toFixed(2)} USDC to WETH...`);
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+
+        swapTx = await this.walletClient.writeContract({
+          address: config.contracts.router,
+          abi: routerAbi,
+          functionName: 'exactInputSingle',
+          gas: 400000n,
+          args: [{
+            tokenIn: config.contracts.usdc,
+            tokenOut: config.contracts.weth,
+            tickSpacing: 100,
+            recipient: accountAddress,
+            deadline,
+            amountIn: swapAmountBigInt,
+            amountOutMinimum: 0n,
+            sqrtPriceLimitX96: 0n
+          }]
+        });
+
+        const swapReceipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+        if (swapReceipt.status !== 'success') {
+          throw new Error(`El swap de USDC a WETH falló en Base (Tx: ${swapTx})`);
+        }
         await new Promise(r => setTimeout(r, 2000));
-        console.log(`[Service] USDC approval confirmed: ${approveTx}`);
+        console.log(`[Service] Swap completed successfully! Tx: ${swapTx}`);
       }
-
-      // Execute Swap: 50% USDC -> WETH
-      console.log(`[Service] Swapping ${(usdcTotalAmount / 2).toFixed(2)} USDC to WETH...`);
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
-
-      const swapTx = await this.walletClient.writeContract({
-        address: config.contracts.router,
-        abi: routerAbi,
-        functionName: 'exactInputSingle',
-        gas: 400000n,
-        args: [{
-          tokenIn: config.contracts.usdc,
-          tokenOut: config.contracts.weth,
-          tickSpacing: 100,
-          recipient: accountAddress,
-          deadline,
-          amountIn: swapAmountBigInt,
-          amountOutMinimum: 0n,
-          sqrtPriceLimitX96: 0n
-        }]
-      });
-
-      const swapReceipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
-      if (swapReceipt.status !== 'success') {
-        throw new Error(`El swap de USDC a WETH falló en Base (Tx: ${swapTx})`);
-      }
-      await new Promise(r => setTimeout(r, 2000));
-      console.log(`[Service] Swap completed successfully! Tx: ${swapTx}`);
 
       // 3. Check balances for minting
       const [wethBal, usdcBal] = await Promise.all([
@@ -375,6 +396,7 @@ export class AerodromeService {
 
       // 5. Mint concentrated liquidity position
       console.log(`[Service] Minting centered position [${tickLower}, ${tickUpper}]...`);
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
       const mintTx = await this.walletClient.writeContract({
         address: config.contracts.positionManager,
         abi: positionManagerAbi,
@@ -391,7 +413,8 @@ export class AerodromeService {
           amount0Min: 0n,
           amount1Min: 0n,
           recipient: accountAddress,
-          deadline
+          deadline,
+          sqrtPriceX96: 0n
         }]
       });
 
