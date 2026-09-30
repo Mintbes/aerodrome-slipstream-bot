@@ -186,5 +186,14 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
+  // Self-restart endpoint (systemd Restart=always will reboot the process cleanly)
+  app.post('/api/restart', (req, res) => {
+    keeper.getStorage().addLog('ACTION', 'Reinicio del servicio solicitado.');
+    res.json({ success: true, message: 'Reiniciando bot...' });
+    setTimeout(() => {
+      process.exit(0);
+    }, 500);
+  });
+
   return app;
 }
