@@ -45,6 +45,8 @@ export function createServer(keeper: KeeperEngine) {
         remainingDelaySec,
         rebalancesCount: botState.rebalancesCount,
         totalHarvestedAero: botState.totalHarvestedAero,
+        autoSnuggle: botState.autoSnuggle !== false,
+        compound: botState.compound !== false,
         dryRun: config.dryRun,
         walletAddress: keeper.getService().account.address,
         history: botState.rebalanceHistory,
@@ -52,6 +54,24 @@ export function createServer(keeper: KeeperEngine) {
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to fetch status' });
+    }
+  });
+
+  // Toggle Feature endpoint (Auto-Snuggle, Compound)
+  app.post('/api/toggle', (req, res) => {
+    try {
+      const { key, value } = req.body;
+      if (key === 'autoSnuggle' || key === 'compound') {
+        keeper.getStorage().updateState(s => {
+          (s as any)[key] = Boolean(value);
+        });
+        keeper.getStorage().addLog('INFO', `${key === 'autoSnuggle' ? 'Auto-Snuggle' : 'Compound'} fue ${value ? 'activado' : 'desactivado'}.`);
+        res.json({ success: true, key, value: Boolean(value) });
+      } else {
+        res.status(400).json({ error: 'Clave no válida' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

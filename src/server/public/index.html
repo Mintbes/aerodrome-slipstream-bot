@@ -233,22 +233,30 @@
 
       <!-- Auto-Snuggle & Compound Toggles Row -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#182335]">
-        <div class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c]">
+        <!-- Auto-Snuggle Toggle -->
+        <div onclick="toggleFeature('autoSnuggle')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
           <div>
             <p class="text-sm font-bold text-white">Auto-Snuggle</p>
-            <p class="text-xs font-bold text-[#22c55e]">Enabled</p>
+            <p id="label-auto-snuggle" class="text-xs font-bold text-[#22c55e]">Enabled</p>
           </div>
-          <input type="checkbox" checked disabled class="w-5 h-5 accent-emerald-500 cursor-not-allowed rounded">
+          <!-- Custom iOS style Switch -->
+          <div id="switch-auto-snuggle" class="w-12 h-6 flex items-center bg-[#22c55e] rounded-full p-1 transition-colors duration-300 shadow">
+            <div id="thumb-auto-snuggle" class="bg-white w-4 h-4 rounded-full shadow-md transform translate-x-6 transition-transform duration-300"></div>
+          </div>
         </div>
 
-        <div class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c]">
+        <!-- Compound Toggle -->
+        <div onclick="toggleFeature('compound')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
           <div>
             <p class="text-sm font-bold text-white flex items-center gap-1">
-              Compound <span class="text-xs text-gray-500">ⓘ</span>
+              Compound <span class="text-xs text-gray-500 cursor-help" title="Reinvierte comisiones y AERO automáticamente">ⓘ</span>
             </p>
-            <p class="text-xs font-bold text-[#22c55e]">Enabled</p>
+            <p id="label-compound" class="text-xs font-bold text-[#22c55e]">Enabled</p>
           </div>
-          <input type="checkbox" checked disabled class="w-5 h-5 accent-emerald-500 cursor-not-allowed rounded">
+          <!-- Custom iOS style Switch -->
+          <div id="switch-compound" class="w-12 h-6 flex items-center bg-[#22c55e] rounded-full p-1 transition-colors duration-300 shadow">
+            <div id="thumb-compound" class="bg-white w-4 h-4 rounded-full shadow-md transform translate-x-6 transition-transform duration-300"></div>
+          </div>
         </div>
       </div>
 
@@ -435,6 +443,10 @@
           band.className = 'absolute top-0 bottom-0 bg-amber-950/70 border-l-2 border-r-2 border-amber-400 transition-all duration-500';
         }
 
+        // Feature toggles
+        updateToggleUi('autoSnuggle', data.autoSnuggle !== false);
+        updateToggleUi('compound', data.compound !== false);
+
         // Logs
         const logsContainer = document.getElementById('logs-list');
         if (data.logs && data.logs.length > 0) {
@@ -478,6 +490,44 @@
       } finally {
         btn.disabled = false;
         btn.textContent = 'Claim AERO';
+      }
+    }
+
+    let currentToggles = { autoSnuggle: true, compound: true };
+
+    function updateToggleUi(key, isEnabled) {
+      currentToggles[key] = isEnabled;
+      const kSlug = key === 'autoSnuggle' ? 'auto-snuggle' : 'compound';
+      const label = document.getElementById(`label-${kSlug}`);
+      const sw = document.getElementById(`switch-${kSlug}`);
+      const thumb = document.getElementById(`thumb-${kSlug}`);
+
+      if (!label || !sw || !thumb) return;
+
+      if (isEnabled) {
+        label.textContent = 'Enabled';
+        label.className = 'text-xs font-bold text-[#22c55e]';
+        sw.className = 'w-12 h-6 flex items-center bg-[#22c55e] rounded-full p-1 transition-colors duration-300 shadow';
+        thumb.className = 'bg-white w-4 h-4 rounded-full shadow-md transform translate-x-6 transition-transform duration-300';
+      } else {
+        label.textContent = 'Disabled';
+        label.className = 'text-xs font-medium text-gray-400';
+        sw.className = 'w-12 h-6 flex items-center bg-[#1e293b] rounded-full p-1 transition-colors duration-300 shadow';
+        thumb.className = 'bg-white w-4 h-4 rounded-full shadow-md transform translate-x-0 transition-transform duration-300';
+      }
+    }
+
+    async function toggleFeature(key) {
+      const newVal = !currentToggles[key];
+      updateToggleUi(key, newVal);
+      try {
+        await fetch('/api/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value: newVal })
+        });
+      } catch(e) {
+        console.error('Toggle error:', e);
       }
     }
 

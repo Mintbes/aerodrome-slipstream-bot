@@ -13,6 +13,8 @@ export interface BotState {
   outOfRangeSince: number | null; // Timestamp in ms
   rebalancesCount: number;
   totalHarvestedAero: number;
+  autoSnuggle: boolean;
+  compound: boolean;
   rebalanceHistory: Array<{
     timestamp: number;
     direction: 'UP' | 'DOWN';
@@ -42,6 +44,8 @@ const DEFAULT_STATE: BotState = {
   outOfRangeSince: null,
   rebalancesCount: 0,
   totalHarvestedAero: 0,
+  autoSnuggle: true,
+  compound: true,
   rebalanceHistory: [],
   logs: []
 };

@@ -89,6 +89,10 @@ export class KeeperEngine {
           const remainingSec = Math.max(0, config.rebalanceDelaySeconds - elapsedSec);
 
           if (remainingSec === 0) {
+            if (botState.autoSnuggle === false) {
+              // Auto-Snuggle is paused by user
+              return;
+            }
             // Delay expired! Trigger Auto-Rebalance
             const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
             this.storage.addLog('ACTION', `Delay timer expired. Triggering automated Zero-Swap rebalance (${dir})...`);
