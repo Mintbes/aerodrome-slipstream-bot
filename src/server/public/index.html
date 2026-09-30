@@ -438,8 +438,13 @@
           statusBadge.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30';
           statusBadge.innerHTML = `<span>Out of Range</span> <span class="font-mono opacity-80 text-[10px]">⏱ ${min}m ${sec}s</span>`;
 
-          statusBanner.className = 'p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#182335]';
-          statusBanner.textContent = `Auto-snuggle in ~${min}m ${sec}s`;
+          if (data.autoSnuggle === false) {
+            statusBanner.className = 'p-3 text-center text-xs font-semibold text-rose-300 bg-rose-500/10 border-b border-[#182335]';
+            statusBanner.textContent = '⏸ Auto-Snuggle desactivado: El rebalanceo automático está en pausa';
+          } else {
+            statusBanner.className = 'p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#182335]';
+            statusBanner.textContent = `Auto-snuggle in ~${min}m ${sec}s`;
+          }
           band.className = 'absolute top-0 bottom-0 bg-amber-950/70 border-l-2 border-r-2 border-amber-400 transition-all duration-500';
         }
 
