@@ -4,7 +4,7 @@
   "description": "Automated zero-swap concentrated liquidity bot for Aerodrome Slipstream on Base",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').cpSync('src/server/public', 'dist/server/public', {recursive: true})\"",
     "start": "ts-node src/index.ts",
     "dev": "ts-node src/index.ts",
     "serve": "node dist/index.js"

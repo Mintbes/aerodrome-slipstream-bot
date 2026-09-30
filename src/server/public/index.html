@@ -79,26 +79,26 @@
       
       <!-- Card 1: Total Value -->
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
-        <p class="text-xs text-gray-400 font-medium">Total Value</p>
-        <h2 id="kpi-total-value" class="text-2xl font-bold text-white mt-1">$4,340.00</h2>
-        <p id="kpi-asset-breakdown" class="text-xs text-gray-400 mt-1 font-mono">4.34e+3 USDC</p>
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Value</p>
+        <h2 id="kpi-total-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$4,340.00</h2>
+        <p id="kpi-asset-breakdown" class="text-sm text-gray-300 mt-1 font-mono font-medium">4.34e+3 USDC</p>
       </div>
 
       <!-- Card 2: Total Earnings -->
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
-        <p class="text-xs text-gray-400 font-medium">Total Earnings</p>
-        <h2 id="kpi-total-earnings" class="text-2xl font-bold text-[#22c55e] mt-1">$380.41</h2>
-        <p id="kpi-uncollected-earnings" class="text-xs text-[#22c55e]/80 mt-1 font-mono">$170.56 uncollected</p>
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earnings</p>
+        <h2 id="kpi-total-earnings" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$380.41</h2>
+        <p id="kpi-uncollected-earnings" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$170.56 uncollected</p>
       </div>
 
       <!-- Card 3: Portfolio Yield -->
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
         <div class="flex items-center gap-1">
-          <p class="text-xs text-gray-400 font-medium">Portfolio Yield</p>
-          <span class="text-[10px] text-gray-500 cursor-help" title="Rendimiento anualizado estimado">ⓘ</span>
+          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Portfolio Yield</p>
+          <span class="text-xs text-gray-500 cursor-help" title="Rendimiento anualizado estimado">ⓘ</span>
         </div>
-        <h2 class="text-2xl font-bold text-[#22c55e] mt-1">188.4%</h2>
-        <p id="kpi-daily-projected" class="text-xs text-[#22c55e]/80 mt-1 font-mono">$92.36/day projected</p>
+        <h2 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">188.4%</h2>
+        <p id="kpi-daily-projected" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$92.36/day projected</p>
       </div>
 
     </div>
@@ -106,16 +106,16 @@
     <!-- Second Info Row: Active Positions, Total Rebalances, Contract -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
-        <span class="text-xs text-gray-400">Active Positions</span>
-        <span class="text-lg font-bold text-white">1</span>
+        <span class="text-sm font-medium text-gray-400">Active Positions</span>
+        <span class="text-2xl font-black text-white font-mono">1</span>
       </div>
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
-        <span class="text-xs text-gray-400">Total Rebalances</span>
-        <span id="kpi-rebalances-count" class="text-lg font-bold text-white">1</span>
+        <span class="text-sm font-medium text-gray-400">Total Rebalances</span>
+        <span id="kpi-rebalances-count" class="text-2xl font-black text-white font-mono">0</span>
       </div>
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
-        <span class="text-xs text-gray-400">Contract</span>
-        <a href="https://basescan.org/address/0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59" target="_blank" class="text-xs font-semibold text-[#22c55e] hover:underline flex items-center gap-1">
+        <span class="text-sm font-medium text-gray-400">Contract</span>
+        <a href="https://basescan.org/address/0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59" target="_blank" class="text-sm font-bold text-[#22c55e] hover:underline flex items-center gap-1">
           View on Basescan ↗
         </a>
       </div>
@@ -129,20 +129,20 @@
         <div class="flex items-center space-x-3">
           <!-- Token Icons -->
           <div class="flex -space-x-2 overflow-hidden">
-            <span class="inline-block w-7 h-7 rounded-full bg-blue-500 border-2 border-[#0e1626] text-center text-xs leading-6">🔷</span>
-            <span class="inline-block w-7 h-7 rounded-full bg-emerald-500 border-2 border-[#0e1626] text-center text-xs leading-6">💵</span>
+            <span class="inline-block w-8 h-8 rounded-full bg-blue-500 border-2 border-[#0e1626] text-center text-sm leading-7">🔷</span>
+            <span class="inline-block w-8 h-8 rounded-full bg-emerald-500 border-2 border-[#0e1626] text-center text-sm leading-7">💵</span>
           </div>
           <div>
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
               WETH / USDC 
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold font-mono">CL100</span>
-              <span class="text-xs text-gray-400 font-mono">#77178909 ↗ · 1d 7h</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
+              <span class="text-sm text-gray-400 font-mono">#77178909 ↗ · 1d 7h</span>
             </h3>
           </div>
         </div>
 
         <!-- In Range / Out of Range Badge -->
-        <div id="position-status-badge" class="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30">
+        <div id="position-status-badge" class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30">
           <span>In Range</span>
         </div>
       </div>
@@ -150,21 +150,21 @@
       <!-- Position Metrics 3-Column Grid -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-[#182335]">
         <div>
-          <p class="text-xs text-gray-400">Position Value</p>
-          <h4 id="pos-value" class="text-xl font-bold text-white mt-1">$4,335.60</h4>
-          <p id="pos-assets" class="text-xs text-gray-400 font-mono mt-1">4.34e+3 USDC</p>
+          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
+          <h4 id="pos-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$4,335.60</h4>
+          <p id="pos-assets" class="text-sm text-gray-300 font-mono font-medium mt-1">4.34e+3 USDC</p>
         </div>
 
         <div>
-          <p class="text-xs text-gray-400">Earnings Rate</p>
-          <h4 class="text-xl font-bold text-[#22c55e] mt-1">172.9%</h4>
-          <p id="pos-daily-rate" class="text-xs text-[#22c55e] font-mono mt-1">$20.53/day</p>
+          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Earnings Rate</p>
+          <h4 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">172.9%</h4>
+          <p id="pos-daily-rate" class="text-base font-bold text-[#22c55e] font-mono mt-1">$20.53/day</p>
         </div>
 
         <div>
-          <p class="text-xs text-gray-400">Total Earned</p>
-          <h4 id="pos-total-earned" class="text-xl font-bold text-[#22c55e] mt-1">$26.45</h4>
-          <div class="text-[11px] text-gray-400 font-mono mt-1 space-y-0.5">
+          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
+          <h4 id="pos-total-earned" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$26.45</h4>
+          <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-1">
             <p>├ $26.27 collected</p>
             <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.18 uncollected</span> (0.21 AERO)</p>
           </div>
@@ -173,72 +173,72 @@
 
       <!-- Price Range Graphical Slider (Snuggle Visual Design) -->
       <div class="p-6 border-b border-[#182335] space-y-4">
-        <p class="text-xs text-gray-400 font-medium">Price Range (USDC per WETH)</p>
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Price Range (USDC per WETH)</p>
         
         <!-- Interactive Horizontal Range Bar -->
-        <div class="relative py-6">
-          <div class="h-3 w-full bg-[#1b2537] rounded-full relative overflow-hidden">
+        <div class="relative py-7">
+          <div class="h-3.5 w-full bg-[#1b2537] rounded-full relative overflow-hidden">
             <!-- Active colored band -->
             <div id="slider-band" class="h-full bg-[#22c55e] rounded-full transition-all duration-500" style="margin-left: 20%; width: 60%;"></div>
           </div>
 
           <!-- Left & Right boundary labels directly below the track -->
-          <div class="flex justify-between items-center text-xs font-mono text-gray-300 mt-2 px-1">
-            <span id="slider-lower">$2,623</span>
-            <span id="slider-upper">$2,730</span>
+          <div class="flex justify-between items-center text-sm md:text-base font-bold font-mono text-gray-200 mt-3 px-1">
+            <span id="slider-lower" class="bg-[#121c2e] px-3 py-1 rounded-lg border border-[#1e2c42] shadow-sm">$2,623</span>
+            <span id="slider-upper" class="bg-[#121c2e] px-3 py-1 rounded-lg border border-[#1e2c42] shadow-sm">$2,730</span>
           </div>
 
           <!-- Current Price Needle Marker -->
-          <div id="slider-marker" class="absolute top-2 flex flex-col items-center transition-all duration-500" style="left: 70%;">
-            <div class="px-2 py-0.5 rounded bg-emerald-500 text-black text-[11px] font-bold shadow -translate-y-full mb-1" id="slider-price-label">
+          <div id="slider-marker" class="absolute top-2.5 flex flex-col items-center transition-all duration-500" style="left: 70%;">
+            <div class="px-3 py-1 rounded-lg bg-[#22c55e] text-black text-sm md:text-base font-black shadow-xl ring-2 ring-emerald-300/40 -translate-y-full mb-1.5" id="slider-price-label">
               $2,728
             </div>
-            <div class="w-3 h-3 bg-emerald-400 border-2 border-white rounded-full shadow"></div>
-            <div class="w-0.5 h-6 bg-emerald-400 border-dashed"></div>
+            <div class="w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow-lg"></div>
+            <div class="w-0.5 h-7 bg-emerald-400 border-dashed"></div>
           </div>
         </div>
       </div>
 
       <!-- Configuration & Parameters Row -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#182335] bg-[#0c1322]">
-        <div class="flex items-center justify-between p-3 rounded-xl bg-[#111a2c] border border-[#1d293d]">
-          <span class="text-xs text-gray-400">Range</span>
-          <span class="text-xs font-bold text-white font-mono flex items-center gap-1">
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+          <span class="text-sm font-medium text-gray-400">Range</span>
+          <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
             <span id="cfg-range">4.1%</span> 
-            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white">✏️</button>
+            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm">✏️</button>
           </span>
         </div>
 
-        <div class="flex items-center justify-between p-3 rounded-xl bg-[#111a2c] border border-[#1d293d]">
-          <span class="text-xs text-gray-400">Delay</span>
-          <span class="text-xs font-bold text-white font-mono flex items-center gap-1">
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+          <span class="text-sm font-medium text-gray-400">Delay</span>
+          <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
             <span id="cfg-delay">1h</span>
-            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white">✏️</button>
+            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm">✏️</button>
           </span>
         </div>
 
-        <div class="flex items-center justify-between p-3 rounded-xl bg-[#111a2c] border border-[#1d293d]">
-          <span class="text-xs text-gray-400">Rebalances</span>
-          <span id="cfg-rebalances" class="text-xs font-bold text-white font-mono">1</span>
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+          <span class="text-sm font-medium text-gray-400">Rebalances</span>
+          <span id="cfg-rebalances" class="text-base md:text-lg font-black text-white font-mono">0</span>
         </div>
       </div>
 
       <!-- Auto-Snuggle & Compound Toggles Row -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#182335]">
-        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#101828] border border-[#1c283c]">
+        <div class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c]">
           <div>
-            <p class="text-xs font-semibold text-white">Auto-Snuggle</p>
-            <p class="text-[11px] text-[#22c55e]">Enabled</p>
+            <p class="text-sm font-bold text-white">Auto-Snuggle</p>
+            <p class="text-xs font-bold text-[#22c55e]">Enabled</p>
           </div>
           <input type="checkbox" checked disabled class="w-5 h-5 accent-emerald-500 cursor-not-allowed rounded">
         </div>
 
-        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#101828] border border-[#1c283c]">
+        <div class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c]">
           <div>
-            <p class="text-xs font-semibold text-white flex items-center gap-1">
-              Compound <span class="text-[10px] text-gray-500">ⓘ</span>
+            <p class="text-sm font-bold text-white flex items-center gap-1">
+              Compound <span class="text-xs text-gray-500">ⓘ</span>
             </p>
-            <p class="text-[11px] text-[#22c55e]">Enabled</p>
+            <p class="text-xs font-bold text-[#22c55e]">Enabled</p>
           </div>
           <input type="checkbox" checked disabled class="w-5 h-5 accent-emerald-500 cursor-not-allowed rounded">
         </div>
@@ -251,21 +251,21 @@
 
       <!-- Action Buttons Row (Exact Snuggle Buttons) -->
       <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button onclick="claimRewards()" id="btn-claim" class="w-full py-3 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-xs shadow transition active:scale-98">
+        <button onclick="claimRewards()" id="btn-claim" class="w-full py-3.5 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98">
           Claim AERO
         </button>
 
-        <button onclick="triggerRebalance()" id="btn-rebalance" class="w-full py-3 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-xs shadow transition active:scale-98">
+        <button onclick="triggerRebalance()" id="btn-rebalance" class="w-full py-3.5 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98">
           Snuggle Rebalance
         </button>
       </div>
 
       <!-- Secondary Buttons (Share & Withdraw) -->
       <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-300 font-semibold text-xs transition flex items-center justify-center gap-1.5">
+        <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition flex items-center justify-center gap-1.5">
           <span>↑</span> Share
         </button>
-        <button onclick="alert('Retiro de emergencia preparado: 100% de capital a tu wallet.')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-300 font-semibold text-xs transition">
+        <button onclick="alert('Retiro de emergencia preparado: 100% de capital a tu wallet.')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition">
           Withdraw
         </button>
       </div>
@@ -279,10 +279,10 @@
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           Registro de Ejecución del Bot en Vivo
         </h4>
-        <span class="text-[10px] text-gray-500 font-mono">Actualizado cada 5s</span>
+        <span class="text-xs text-gray-500 font-mono">Actualizado cada 5s</span>
       </div>
 
-      <div id="logs-list" class="max-h-48 overflow-y-auto space-y-1.5 font-mono text-[11px] text-gray-400 pr-2">
+      <div id="logs-list" class="max-h-56 overflow-y-auto space-y-1.5 font-mono text-xs md:text-sm text-gray-300 pr-2">
         <p class="text-gray-500 italic">Cargando eventos...</p>
       </div>
     </div>
