@@ -97,14 +97,14 @@ export class KeeperEngine {
             const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
             this.storage.addLog('ACTION', `Delay timer expired. Triggering automated Zero-Swap rebalance (${dir})...`);
 
-            const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, null);
+            const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
             if (res.success) {
               const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
               const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
               this.storage.updateState(s => {
                 s.activePosition = {
-                  tokenId: s.activePosition.tokenId,
+                  tokenId: res.newTokenId || s.activePosition.tokenId,
                   tickLower: res.newRange.tickLower,
                   tickUpper: res.newRange.tickUpper,
                   priceLower: res.newRange.priceLower,
@@ -123,7 +123,9 @@ export class KeeperEngine {
                 });
               });
 
-              this.storage.addLog('ACTION', `Rebalance completed! New Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)}`);
+              this.storage.addLog('ACTION', `🚀 Rebalance completed! New NFT: #${res.newTokenId || pos.tokenId}. Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)} (Tx: ${res.txHash?.slice(0, 10)}...)`);
+            } else {
+              this.storage.addLog('ERROR', `Rebalance failed: ${res.error}`);
             }
           }
         }
@@ -147,7 +149,7 @@ export class KeeperEngine {
     const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
 
     this.storage.addLog('ACTION', `User triggered manual Zero-Swap rebalance (${dir})...`);
-    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, null);
+    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
 
     if (res.success) {
       const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
@@ -155,7 +157,7 @@ export class KeeperEngine {
 
       this.storage.updateState(s => {
         s.activePosition = {
-          tokenId: s.activePosition.tokenId,
+          tokenId: res.newTokenId || s.activePosition.tokenId,
           tickLower: res.newRange.tickLower,
           tickUpper: res.newRange.tickUpper,
           priceLower: res.newRange.priceLower,
@@ -173,9 +175,11 @@ export class KeeperEngine {
           txHash: res.txHash || ''
         });
       });
-      this.storage.addLog('ACTION', `Manual rebalance completed! New Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)}`);
+      this.storage.addLog('ACTION', `🚀 Manual rebalance completed! New NFT: #${res.newTokenId || pos.tokenId}. Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)}`);
       return true;
+    } else {
+      this.storage.addLog('ERROR', `Manual rebalance failed: ${res.error}`);
+      return false;
     }
-    return false;
   }
 }

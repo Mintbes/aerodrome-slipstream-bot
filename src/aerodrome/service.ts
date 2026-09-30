@@ -132,13 +132,19 @@ export class AerodromeService {
   }
 
   /**
-   * Executes a Zero-Swap rebalance
+   * Executes an On-Chain Zero-Swap rebalance exactly like Snuggle Finance
    */
   async executeZeroSwapRebalance(
     currentTick: number,
     exitDirection: 'UP' | 'DOWN',
-    activeTokenId: bigint | null
-  ): Promise<{ success: boolean; newRange: ReturnType<typeof calculateZeroSwapUsdcRange>; txHash?: string }> {
+    activeTokenId: string | null
+  ): Promise<{
+    success: boolean;
+    newRange: ReturnType<typeof calculateZeroSwapUsdcRange>;
+    newTokenId?: string;
+    txHash?: string;
+    error?: string;
+  }> {
     const newRange = this.calculateRebalanceRange(currentTick, exitDirection);
 
     if (config.dryRun) {
@@ -147,17 +153,257 @@ export class AerodromeService {
       return {
         success: true,
         newRange,
+        newTokenId: 'SIMULATED_LP_' + Date.now(),
         txHash: '0xdryrun_simulated_tx_hash'
       };
     }
 
-    // LIVE EXECUTION LOGIC
-    console.log(`[LIVE] Executing On-Chain Zero-Swap Rebalance...`);
-    return {
-      success: true,
-      newRange,
-      txHash: '0xlive_tx_executed'
-    };
+    try {
+      console.log(`[Service] ====================================================`);
+      console.log(`[Service] 🔄 INITIATING ON-CHAIN ZERO-SWAP REBALANCE (${exitDirection})`);
+      console.log(`[Service] Current Tick: ${currentTick}. Target Range: [${newRange.tickLower}, ${newRange.tickUpper}] ($${newRange.priceLower.toFixed(2)} - $${newRange.priceUpper.toFixed(2)})`);
+      console.log(`[Service] ====================================================`);
+
+      const accountAddress = this.account.address;
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+
+      // Step 1: If there is an active position, unstake from Gauge and withdraw liquidity
+      if (activeTokenId) {
+        const tokenIdBigInt = BigInt(activeTokenId);
+
+        // 1a. Unstake from Gauge if currently staked
+        try {
+          const isStaked = await this.publicClient.readContract({
+            address: config.contracts.gauge,
+            abi: gaugeAbi,
+            functionName: 'stakedContains',
+            args: [accountAddress, tokenIdBigInt]
+          });
+
+          if (isStaked) {
+            console.log(`[Service] Step 1a: Unstaking NFT #${activeTokenId} from Aerodrome Gauge...`);
+            const withdrawTx = await this.walletClient.writeContract({
+              address: config.contracts.gauge,
+              abi: gaugeAbi,
+              functionName: 'withdraw',
+              gas: 500000n,
+              args: [tokenIdBigInt]
+            });
+            const withdrawReceipt = await this.publicClient.waitForTransactionReceipt({ hash: withdrawTx });
+            if (withdrawReceipt.status !== 'success') {
+              throw new Error(`Failed to withdraw NFT #${activeTokenId} from Gauge (Tx: ${withdrawTx})`);
+            }
+            console.log(`[Service] Withdrawn from Gauge! Tx: ${withdrawTx}`);
+            await new Promise(r => setTimeout(r, 2000));
+          }
+        } catch (gaugeErr: any) {
+          console.warn(`[Service] Gauge unstake check/action note:`, gaugeErr.shortMessage || gaugeErr.message);
+        }
+
+        // 1b. Decrease liquidity to 0
+        try {
+          const pos = await this.publicClient.readContract({
+            address: config.contracts.positionManager,
+            abi: positionManagerAbi,
+            functionName: 'positions',
+            args: [tokenIdBigInt]
+          });
+          const liquidity = pos[7];
+
+          if (liquidity > 0n) {
+            console.log(`[Service] Step 1b: Removing all liquidity (${liquidity.toString()}) from NFT #${activeTokenId}...`);
+            const decreaseTx = await this.walletClient.writeContract({
+              address: config.contracts.positionManager,
+              abi: positionManagerAbi,
+              functionName: 'decreaseLiquidity',
+              gas: 400000n,
+              args: [{
+                tokenId: tokenIdBigInt,
+                liquidity,
+                amount0Min: 0n,
+                amount1Min: 0n,
+                deadline
+              }]
+            });
+            const decReceipt = await this.publicClient.waitForTransactionReceipt({ hash: decreaseTx });
+            if (decReceipt.status !== 'success') {
+              throw new Error(`Failed to decrease liquidity on NFT #${activeTokenId} (Tx: ${decreaseTx})`);
+            }
+            console.log(`[Service] Liquidity removed! Tx: ${decreaseTx}`);
+            await new Promise(r => setTimeout(r, 2000));
+          }
+
+          // 1c. Collect all assets to wallet
+          console.log(`[Service] Step 1c: Collecting withdrawn assets from NFT #${activeTokenId}...`);
+          const max128 = 2n ** 128n - 1n;
+          const collectTx = await this.walletClient.writeContract({
+            address: config.contracts.positionManager,
+            abi: positionManagerAbi,
+            functionName: 'collect',
+            gas: 300000n,
+            args: [{
+              tokenId: tokenIdBigInt,
+              recipient: accountAddress,
+              amount0Max: max128,
+              amount1Max: max128
+            }]
+          });
+          const collectReceipt = await this.publicClient.waitForTransactionReceipt({ hash: collectTx });
+          if (collectReceipt.status !== 'success') {
+            throw new Error(`Failed to collect assets from NFT #${activeTokenId} (Tx: ${collectTx})`);
+          }
+          console.log(`[Service] Assets collected to wallet! Tx: ${collectTx}`);
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (closeErr: any) {
+          console.error(`[Service] Error closing old position:`, closeErr);
+          throw closeErr;
+        }
+      }
+
+      // Step 2: Read current wallet balances for single-sided mint (Zero-Swap!)
+      const [wethBal, usdcBal] = await Promise.all([
+        this.publicClient.readContract({
+          address: config.contracts.weth,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [accountAddress]
+        }),
+        this.publicClient.readContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [accountAddress]
+        })
+      ]);
+
+      console.log(`[Service] Step 2: Balances available for Zero-Swap: WETH: ${formatUnits(wethBal, 18)}, USDC: ${formatUnits(usdcBal, 6)}`);
+
+      let amount0Desired = 0n;
+      let amount1Desired = 0n;
+
+      if (exitDirection === 'UP') {
+        // Exited UP: range is placed below current price -> 100% USDC single-sided
+        amount0Desired = 0n;
+        amount1Desired = usdcBal;
+        console.log(`[Service] Zero-Swap: Depositing 100% USDC (${formatUnits(usdcBal, 6)} USDC) below current price. 0 WETH needed!`);
+        if (usdcBal === 0n) throw new Error('No USDC balance available to fund the new range.');
+      } else {
+        // Exited DOWN: range is placed above current price -> 100% WETH single-sided
+        amount0Desired = wethBal;
+        amount1Desired = 0n;
+        console.log(`[Service] Zero-Swap: Depositing 100% WETH (${formatUnits(wethBal, 18)} WETH) above current price. 0 USDC needed!`);
+        if (wethBal === 0n) throw new Error('No WETH balance available to fund the new range.');
+      }
+
+      // Step 3: Check approvals to PositionManager
+      if (amount0Desired > 0n) {
+        const wethAllowance = await this.publicClient.readContract({
+          address: config.contracts.weth,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [accountAddress, config.contracts.positionManager]
+        });
+        if (wethAllowance < amount0Desired) {
+          console.log(`[Service] Approving WETH to PositionManager...`);
+          const txWeth = await this.walletClient.writeContract({
+            address: config.contracts.weth,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [config.contracts.positionManager, maxUint256]
+          });
+          await this.publicClient.waitForTransactionReceipt({ hash: txWeth });
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+
+      if (amount1Desired > 0n) {
+        const usdcAllowance = await this.publicClient.readContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'allowance',
+          args: [accountAddress, config.contracts.positionManager]
+        });
+        if (usdcAllowance < amount1Desired) {
+          console.log(`[Service] Approving USDC to PositionManager...`);
+          const txUsdc = await this.walletClient.writeContract({
+            address: config.contracts.usdc,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [config.contracts.positionManager, maxUint256]
+          });
+          await this.publicClient.waitForTransactionReceipt({ hash: txUsdc });
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+
+      // Step 4: Mint new single-sided concentrated liquidity position
+      console.log(`[Service] Step 4: Minting new single-sided Zero-Swap position [${newRange.tickLower}, ${newRange.tickUpper}]...`);
+      const mintTx = await this.walletClient.writeContract({
+        address: config.contracts.positionManager,
+        abi: positionManagerAbi,
+        functionName: 'mint',
+        gas: 600000n,
+        args: [{
+          token0: config.contracts.weth,
+          token1: config.contracts.usdc,
+          tickSpacing: 100,
+          tickLower: newRange.tickLower,
+          tickUpper: newRange.tickUpper,
+          amount0Desired,
+          amount1Desired,
+          amount0Min: 0n,
+          amount1Min: 0n,
+          recipient: accountAddress,
+          deadline,
+          sqrtPriceX96: 0n
+        }]
+      });
+
+      const mintReceipt = await this.publicClient.waitForTransactionReceipt({ hash: mintTx });
+      if (mintReceipt.status !== 'success') {
+        throw new Error(`Failed to mint new Zero-Swap LP position (Tx: ${mintTx})`);
+      }
+      console.log(`[Service] New position minted! Tx: ${mintTx}`);
+
+      // Extract new tokenId
+      let newTokenId: string | undefined;
+      for (const log of mintReceipt.logs) {
+        if (
+          log.address.toLowerCase() === config.contracts.positionManager.toLowerCase() &&
+          log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' &&
+          log.topics.length >= 4
+        ) {
+          const rawId = BigInt(log.topics[3]!);
+          newTokenId = rawId.toString();
+          break;
+        }
+      }
+
+      if (!newTokenId) {
+        throw new Error('Failed to extract tokenId from mint event');
+      }
+
+      console.log(`[Service] Extracted New NFT ID: #${newTokenId}`);
+
+      // Step 5: Automatically stake the new NFT into the Aerodrome Gauge (Snuggle Style!)
+      console.log(`[Service] Step 5: Automatically staking new NFT #${newTokenId} into Aerodrome Gauge...`);
+      await this.stakePositionInGauge(newTokenId);
+
+      console.log(`[Service] ✅ Zero-Swap Rebalance Fully Completed! New Token: #${newTokenId}`);
+      return {
+        success: true,
+        newRange,
+        newTokenId,
+        txHash: mintTx
+      };
+    } catch (err: any) {
+      console.error(`[Service] Zero-Swap Rebalance error:`, err);
+      return {
+        success: false,
+        newRange,
+        error: err.shortMessage || err.message || String(err)
+      };
+    }
   }
 
   /**
