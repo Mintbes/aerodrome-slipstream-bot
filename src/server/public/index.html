@@ -331,7 +331,7 @@
             <p class="font-semibold text-white">Modo Simulación (Dry Run)</p>
             <p class="text-[10px] text-gray-400">Si está activo, no mueve fondos reales.</p>
           </div>
-          <input id="input-dry-run" type="checkbox" checked class="w-4 h-4 accent-yellow-400">
+          <input id="input-dry-run" type="checkbox" class="w-4 h-4 accent-yellow-400">
         </div>
       </div>
 
@@ -440,6 +440,7 @@
       try {
         const res = await fetch('/api/status');
         const data = await res.json();
+        window.currentStatusData = data;
 
         const price = data.pool.currentPrice;
         const pos = data.position;
@@ -713,6 +714,16 @@
 
     function toggleSettingsModal() {
       const modal = document.getElementById('settings-modal');
+      const isOpening = modal.classList.contains('hidden');
+      if (isOpening && window.currentStatusData) {
+        document.getElementById('input-dry-run').checked = Boolean(window.currentStatusData.dryRun);
+        if (window.currentStatusData.rangeWidthPercent) {
+          document.getElementById('input-range-width').value = window.currentStatusData.rangeWidthPercent;
+        }
+        if (window.currentStatusData.rebalanceDelaySeconds) {
+          document.getElementById('input-delay-sec').value = window.currentStatusData.rebalanceDelaySeconds;
+        }
+      }
       modal.classList.toggle('hidden');
     }
 

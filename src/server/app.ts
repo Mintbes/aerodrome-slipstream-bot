@@ -90,6 +90,8 @@ export function createServer(keeper: KeeperEngine) {
         autoSnuggle: botState.autoSnuggle !== false,
         compound: botState.compound !== false,
         dryRun: config.dryRun,
+        rangeWidthPercent: config.rangeWidthPercent,
+        rebalanceDelaySeconds: config.rebalanceDelaySeconds,
         walletAddress: keeper.getService().account.address,
         history: botState.rebalanceHistory,
         logs: botState.logs.slice(0, 30)
