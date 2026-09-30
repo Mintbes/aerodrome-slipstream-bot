@@ -49,11 +49,13 @@
       </div>
 
       <div class="flex items-center space-x-3">
+        <a id="wallet-link" href="https://basescan.org/address/0xE96dBfE34499ae5d53B85be8DCc16Dd388C4565d" target="_blank" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141e30] border border-[#233148] text-xs font-mono text-gray-300 hover:border-emerald-500/50 transition">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="wallet-addr-short">0xE96d...565d</span>
+          <span id="wallet-bal-summary" class="text-emerald-400 font-bold ml-1">0.00 USDC</span>
+        </a>
         <button onclick="toggleSettingsModal()" class="px-3 py-1.5 rounded-lg border border-[#233148] text-xs font-semibold text-gray-300 hover:text-white hover:bg-[#162032] transition">
           ⚙️ Ajustes Bot
-        </button>
-        <button class="w-8 h-8 rounded-lg border border-[#233148] flex items-center justify-center text-gray-400 hover:text-white transition">
-          🔔
         </button>
         <button onclick="triggerRebalance()" class="px-4 py-1.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-bold text-xs shadow-md transition active:scale-95">
           + Nuevo Rango
@@ -349,6 +351,19 @@
         document.getElementById('kpi-total-value').textContent = `$${(price > 0 ? (pos.priceLower ? 4335.60 : 0) : 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
         document.getElementById('kpi-rebalances-count').textContent = data.rebalancesCount;
         document.getElementById('cfg-rebalances').textContent = data.rebalancesCount;
+
+        // Wallet pill
+        if (data.walletAddress) {
+          const w = data.walletAddress;
+          document.getElementById('wallet-addr-short').textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
+          document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
+          const b = data.pool.balances;
+          const ethPart = (b.eth || 0) * price;
+          const wethPart = (b.weth || 0) * price;
+          const usdcPart = b.usdc || 0;
+          const totalUsd = ethPart + wethPart + usdcPart;
+          document.getElementById('wallet-bal-summary').textContent = `${(b.usdc || 0).toFixed(0)} USDC · ${(b.eth || 0).toFixed(4)} ETH`;
+        }
 
         // Mode badge
         const badgeMode = document.getElementById('badge-mode');

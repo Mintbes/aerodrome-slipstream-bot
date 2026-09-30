@@ -43,10 +43,10 @@ export function createServer(keeper: KeeperEngine) {
         position: botState.activePosition,
         outOfRangeSince: botState.outOfRangeSince,
         remainingDelaySec,
-        delayConfigSec: config.rebalanceDelaySeconds,
         rebalancesCount: botState.rebalancesCount,
         totalHarvestedAero: botState.totalHarvestedAero,
         dryRun: config.dryRun,
+        walletAddress: keeper.getService().account.address,
         history: botState.rebalanceHistory,
         logs: botState.logs.slice(0, 30)
       });
