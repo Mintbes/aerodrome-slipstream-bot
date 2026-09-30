@@ -55,77 +55,92 @@ export class KeeperEngine {
       const state = await this.service.getPoolState();
       this.lastPoolState = state;
       const botState = this.storage.getState();
-      const pos = botState.activePosition;
 
-      const inRange = this.service.isTickInRange(state.currentTick, pos.tickLower, pos.tickUpper);
+      const positions = (botState.positions && botState.positions.length > 0)
+        ? botState.positions
+        : (botState.activePosition?.tokenId ? [{
+            tokenId: botState.activePosition.tokenId,
+            tickLower: botState.activePosition.tickLower,
+            tickUpper: botState.activePosition.tickUpper,
+            priceLower: botState.activePosition.priceLower,
+            priceUpper: botState.activePosition.priceUpper,
+            inRange: botState.activePosition.inRange ?? true,
+            outOfRangeSince: botState.outOfRangeSince ?? null,
+            rebalancesCount: botState.rebalancesCount ?? 0,
+            createdAt: Date.now() - 36000000,
+            autoSnuggle: botState.autoSnuggle,
+            compound: botState.compound
+          }] : []);
 
-      if (inRange) {
-        // Price is inside range
-        if (botState.outOfRangeSince !== null) {
-          this.storage.updateState(s => {
-            s.outOfRangeSince = null;
-            s.activePosition.inRange = true;
-          });
-          this.storage.addLog('ACTION', `ETH returned inside range at $${state.currentPrice.toFixed(2)}. Anti-whipsaw delay timer cleared!`);
-        } else if (!pos.inRange) {
-          this.storage.updateState(s => {
-            s.activePosition.inRange = true;
-          });
-        }
-      } else {
-        // Price is OUT of range
-        const now = Date.now();
-        if (botState.outOfRangeSince === null) {
-          // Started leaving range right now
-          this.storage.updateState(s => {
-            s.outOfRangeSince = now;
-            s.activePosition.inRange = false;
-          });
-          const dir = state.currentPrice > pos.priceUpper ? 'ABOVE' : 'BELOW';
-          this.storage.addLog('WARN', `ETH exited range ${dir} ($${state.currentPrice.toFixed(2)} vs [${pos.priceLower.toFixed(0)} - ${pos.priceUpper.toFixed(0)}]). 1h delay timer started.`);
+      for (const pos of positions) {
+        const inRange = this.service.isTickInRange(state.currentTick, pos.tickLower, pos.tickUpper);
+
+        if (inRange) {
+          if (pos.outOfRangeSince !== null) {
+            this.storage.updatePosition(pos.tokenId, p => {
+              p.outOfRangeSince = null;
+              p.inRange = true;
+            });
+            this.storage.addLog('ACTION', `ETH returned inside range for #${pos.tokenId} at $${state.currentPrice.toFixed(2)}. Anti-whipsaw delay timer cleared!`);
+          } else if (!pos.inRange) {
+            this.storage.updatePosition(pos.tokenId, p => {
+              p.inRange = true;
+            });
+          }
         } else {
-          // Timer already running, check if 1h has passed
-          const elapsedSec = Math.floor((now - botState.outOfRangeSince) / 1000);
-          const remainingSec = Math.max(0, config.rebalanceDelaySeconds - elapsedSec);
+          const now = Date.now();
+          if (pos.outOfRangeSince === null) {
+            this.storage.updatePosition(pos.tokenId, p => {
+              p.outOfRangeSince = now;
+              p.inRange = false;
+            });
+            const dir = state.currentPrice > pos.priceUpper ? 'ABOVE' : 'BELOW';
+            this.storage.addLog('WARN', `ETH exited range ${dir} for #${pos.tokenId} ($${state.currentPrice.toFixed(2)} vs [${pos.priceLower.toFixed(0)} - ${pos.priceUpper.toFixed(0)}]). 1h delay timer started.`);
+          } else {
+            const elapsedSec = Math.floor((now - pos.outOfRangeSince) / 1000);
+            const remainingSec = Math.max(0, config.rebalanceDelaySeconds - elapsedSec);
 
-          if (remainingSec === 0) {
-            if (botState.autoSnuggle === false) {
-              // Auto-Snuggle is paused by user
-              return;
-            }
-            // Delay expired! Trigger Auto-Rebalance
-            const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
-            this.storage.addLog('ACTION', `Delay timer expired. Triggering automated Zero-Swap rebalance (${dir})...`);
+            if (remainingSec === 0) {
+              const isAuto = pos.autoSnuggle !== false && botState.autoSnuggle !== false;
+              if (!isAuto) {
+                continue;
+              }
+              const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
+              this.storage.addLog('ACTION', `Delay timer expired for #${pos.tokenId}. Triggering automated Zero-Swap rebalance (${dir})...`);
 
-            const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
-            if (res.success) {
-              const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
-              const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
+              const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
+              if (res.success) {
+                const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
+                const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
-              this.storage.updateState(s => {
-                s.activePosition = {
-                  tokenId: res.newTokenId || s.activePosition.tokenId,
-                  tickLower: res.newRange.tickLower,
-                  tickUpper: res.newRange.tickUpper,
-                  priceLower: res.newRange.priceLower,
-                  priceUpper: res.newRange.priceUpper,
-                  inRange: true
-                };
-                s.outOfRangeSince = null;
-                s.rebalancesCount += 1;
-                s.rebalanceHistory.unshift({
-                  timestamp: now,
-                  direction: dir,
-                  price: state.currentPrice,
-                  oldRange,
-                  newRange,
-                  txHash: res.txHash || ''
+                this.storage.updatePosition(pos.tokenId, p => {
+                  p.tokenId = res.newTokenId || p.tokenId;
+                  p.tickLower = res.newRange.tickLower;
+                  p.tickUpper = res.newRange.tickUpper;
+                  p.priceLower = res.newRange.priceLower;
+                  p.priceUpper = res.newRange.priceUpper;
+                  p.inRange = true;
+                  p.outOfRangeSince = null;
+                  p.rebalancesCount = (p.rebalancesCount || 0) + 1;
                 });
-              });
 
-              this.storage.addLog('ACTION', `🚀 Rebalance completed! New NFT: #${res.newTokenId || pos.tokenId}. Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)} (Tx: ${res.txHash?.slice(0, 10)}...)`);
-            } else {
-              this.storage.addLog('ERROR', `Rebalance failed: ${res.error}`);
+                this.storage.updateState(s => {
+                  s.rebalancesCount = (s.rebalancesCount || 0) + 1;
+                  s.rebalanceHistory.unshift({
+                    timestamp: now,
+                    tokenId: res.newTokenId || pos.tokenId,
+                    direction: dir,
+                    price: state.currentPrice,
+                    oldRange,
+                    newRange,
+                    txHash: res.txHash || ''
+                  });
+                });
+
+                this.storage.addLog('ACTION', `🚀 Rebalance completed for #${pos.tokenId}! New NFT: #${res.newTokenId || pos.tokenId}. Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)}`);
+              } else {
+                this.storage.addLog('ERROR', `Rebalance failed for #${pos.tokenId}: ${res.error}`);
+              }
             }
           }
         }
@@ -140,34 +155,44 @@ export class KeeperEngine {
   /**
    * Manual Force Rebalance triggered by user from Dashboard
    */
-  public async manualRebalance(): Promise<boolean> {
+  public async manualRebalance(targetTokenId?: string): Promise<boolean> {
     if (!this.lastPoolState) {
       this.lastPoolState = await this.service.getPoolState();
     }
     const state = this.lastPoolState;
-    const pos = this.storage.getState().activePosition;
+    const botState = this.storage.getState();
+    const pos = (targetTokenId && botState.positions?.length)
+      ? (botState.positions.find(p => p.tokenId === targetTokenId) || botState.positions[0])
+      : (botState.positions?.[0] || botState.activePosition);
+
     const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
 
-    this.storage.addLog('ACTION', `User triggered manual Zero-Swap rebalance (${dir})...`);
+    this.storage.addLog('ACTION', `User triggered manual Zero-Swap rebalance for NFT #${pos.tokenId} (${dir})...`);
     const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
 
     if (res.success) {
       const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
       const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
+      if (pos.tokenId) {
+        this.storage.updatePosition(pos.tokenId, p => {
+          p.tokenId = res.newTokenId || p.tokenId;
+          p.tickLower = res.newRange.tickLower;
+          p.tickUpper = res.newRange.tickUpper;
+          p.priceLower = res.newRange.priceLower;
+          p.priceUpper = res.newRange.priceUpper;
+          p.inRange = true;
+          p.outOfRangeSince = null;
+          p.rebalancesCount = (p.rebalancesCount || 0) + 1;
+        });
+      }
+
       this.storage.updateState(s => {
-        s.activePosition = {
-          tokenId: res.newTokenId || s.activePosition.tokenId,
-          tickLower: res.newRange.tickLower,
-          tickUpper: res.newRange.tickUpper,
-          priceLower: res.newRange.priceLower,
-          priceUpper: res.newRange.priceUpper,
-          inRange: true
-        };
         s.outOfRangeSince = null;
-        s.rebalancesCount += 1;
+        s.rebalancesCount = (s.rebalancesCount || 0) + 1;
         s.rebalanceHistory.unshift({
           timestamp: Date.now(),
+          tokenId: res.newTokenId || pos.tokenId || '',
           direction: dir,
           price: state.currentPrice,
           oldRange,

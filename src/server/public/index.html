@@ -67,23 +67,30 @@
   <!-- Main Content -->
   <main class="max-w-6xl mx-auto px-6 py-8 w-full space-y-6 flex-1">
     
-    <!-- Title Header -->
+    <!-- Title Header (Exact Snuggle Style) -->
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-white tracking-tight">My Positions</h1>
-      <div class="flex items-center space-x-2 text-xs text-gray-400">
-        <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-        <span>Conectado a Base Mainnet (Slipstream CL100)</span>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold text-white tracking-tight">My Positions</h1>
+        <div class="hidden sm:flex items-center space-x-2 text-xs text-gray-400">
+          <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+          <span>Base Mainnet (Slipstream CL100)</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openCreateModal()" class="px-4 py-2 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs md:text-sm shadow-lg transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
+          <span class="text-base font-black leading-none">+</span> New Position
+        </button>
       </div>
     </div>
 
-    <!-- Top 4 KPI Dashboard Cards (Exact Snuggle Style) -->
+    <!-- Top 6 Aggregate KPI Dashboard Cards (Exact Snuggle Style) -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       
       <!-- Card 1: Total Value -->
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
         <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Value</p>
-        <h2 id="kpi-total-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$500.00</h2>
-        <p id="kpi-asset-breakdown" class="text-sm text-gray-300 mt-1 font-mono font-medium">250.00 USDC · 0.057 WETH</p>
+        <h2 id="kpi-total-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$0.00</h2>
+        <p id="kpi-asset-breakdown" class="text-sm text-gray-300 mt-1 font-mono font-medium">LP: $0.00 · Wallet: $0.00</p>
       </div>
 
       <!-- Card 2: Total Earnings -->
@@ -97,10 +104,10 @@
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
         <div class="flex items-center gap-1">
           <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Portfolio Yield</p>
-          <span class="text-xs text-gray-500 cursor-help" title="Rendimiento anualizado estimado">ⓘ</span>
+          <span class="text-xs text-gray-500 cursor-help" title="Rendimiento medio ponderado anualizado de todas las posiciones">ⓘ</span>
         </div>
-        <h2 id="kpi-yield-pct" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">124.5%</h2>
-        <p id="kpi-daily-projected" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$1.70/day projected</p>
+        <h2 id="kpi-yield-pct" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">183.3%</h2>
+        <p id="kpi-daily-projected" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$0.00/day projected</p>
       </div>
 
     </div>
@@ -123,171 +130,23 @@
       </div>
     </div>
 
-    <!-- The Iconic Snuggle Position Card -->
-    <div class="bg-[#0e1626] border border-[#1a2538] rounded-2xl overflow-hidden shadow-lg">
-      
-      <!-- Position Header -->
-      <div class="p-5 border-b border-[#182335] flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center space-x-3">
-          <!-- Token Icons -->
-          <div class="flex -space-x-2 overflow-hidden">
-            <span class="inline-block w-8 h-8 rounded-full bg-blue-500 border-2 border-[#0e1626] text-center text-sm leading-7">🔷</span>
-            <span class="inline-block w-8 h-8 rounded-full bg-emerald-500 border-2 border-[#0e1626] text-center text-sm leading-7">💵</span>
-          </div>
-          <div>
-            <h3 class="text-lg font-bold text-white flex items-center gap-2">
-              WETH / USDC 
-              <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
-              <span id="pos-token-label" class="text-sm text-gray-400 font-mono">#77245545 ↗ · Recién creada</span>
-            </h3>
-          </div>
-        </div>
-
-        <!-- In Range / Out of Range Badge -->
-        <div id="position-status-badge" class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30">
-          <span>In Range</span>
+    <!-- View Switcher / Sort Bar (Exact Snuggle Style) -->
+    <div class="flex items-center justify-between text-xs text-gray-400 pt-1">
+      <div class="flex items-center space-x-2">
+        <span class="font-semibold text-gray-300">Positions</span>
+        <span id="badge-positions-count" class="px-2 py-0.5 rounded-full bg-[#162032] border border-[#233148] text-xs font-mono text-emerald-400 font-bold">1 Active</span>
+      </div>
+      <div class="flex items-center space-x-2">
+        <div class="bg-[#111a2c] border border-[#1e2a3e] rounded-lg p-0.5 flex items-center">
+          <button id="btn-view-full" onclick="setViewMode('full')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-[#1e2a3e] text-white cursor-pointer">Full</button>
+          <button id="btn-view-compact" onclick="setViewMode('compact')" class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer">Compact</button>
         </div>
       </div>
+    </div>
 
-      <!-- Position Metrics 3-Column Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-[#182335]">
-        <div>
-          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
-          <h4 id="pos-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$500.00</h4>
-          <p id="pos-assets" class="text-sm text-gray-300 font-mono font-medium mt-1">250.00 USDC · 0.057 WETH</p>
-        </div>
-
-        <div>
-          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Earnings Rate</p>
-          <h4 id="pos-rate-pct" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">124.5%</h4>
-          <p id="pos-daily-rate" class="text-base font-bold text-[#22c55e] font-mono mt-1">$1.70/day</p>
-        </div>
-
-        <div>
-          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
-          <h4 id="pos-total-earned" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$0.00</h4>
-          <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-0.5">
-            <p id="pos-collected">├ $0.00 collected</p>
-            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.00 uncollected (0.00 AERO)</span></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Price Range Graphical Slider (Exact Snuggle Style) -->
-      <div class="p-6 border-b border-[#182335] space-y-4">
-        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Price Range (USDC per WETH)</p>
-        
-        <!-- Interactive Horizontal Range Bar -->
-        <div class="relative pt-7 pb-6">
-          
-          <!-- Current Price Label & Needle Marker -->
-          <div id="slider-marker" class="absolute top-0 bottom-6 w-0 pointer-events-none z-20 transition-all duration-500" style="left: 50%;">
-            <div class="relative w-0 h-full flex flex-col items-center">
-              <!-- Price text directly above needle -->
-              <div id="slider-price-label" class="absolute top-0 left-0 -translate-x-1/2 text-sm md:text-base font-bold text-[#22c55e] font-mono tracking-tight whitespace-nowrap">
-                $2670
-              </div>
-              <!-- Vertical vibrant green line through the bar -->
-              <div class="absolute top-7 left-0 -translate-x-1/2 w-[2px] h-7 md:h-8 bg-[#22c55e]"></div>
-              <!-- Center circular bead perfectly centered on the line and vertically in the bar -->
-              <div class="absolute top-[42px] md:top-[44px] left-0 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#22c55e] border-2 border-[#0b1322] shadow"></div>
-            </div>
-          </div>
-
-          <!-- Main Track Bar (Rounded dark rectangle container) -->
-          <div class="h-7 md:h-8 w-full bg-[#131b29] rounded-lg relative overflow-hidden flex items-center shadow-inner border border-[#1a2538]">
-            <!-- Active Forest Green Range Band with crisp vertical light boundary lines -->
-            <div id="slider-band" class="absolute top-0 bottom-0 bg-[#13442e] border-l-2 border-r-2 border-gray-300 transition-all duration-500" style="left: 20%; width: 60%;"></div>
-          </div>
-
-          <!-- Left & Right boundary labels directly aligned under the boundary lines -->
-          <div class="relative h-6 mt-1.5 w-full">
-            <span id="slider-lower" class="absolute text-sm font-semibold font-mono text-gray-400 -translate-x-1/2 transition-all duration-500 top-0" style="left: 20%;">$2623</span>
-            <span id="slider-upper" class="absolute text-sm font-semibold font-mono text-gray-400 -translate-x-1/2 transition-all duration-500 top-0" style="left: 80%;">$2730</span>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- Configuration & Parameters Row -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#182335] bg-[#0c1322]">
-        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
-          <span class="text-sm font-medium text-gray-400">Range</span>
-          <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
-            <span id="cfg-range">4.1%</span> 
-            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm">✏️</button>
-          </span>
-        </div>
-
-        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
-          <span class="text-sm font-medium text-gray-400">Delay</span>
-          <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
-            <span id="cfg-delay">1h</span>
-            <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm">✏️</button>
-          </span>
-        </div>
-
-        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
-          <span class="text-sm font-medium text-gray-400">Rebalances</span>
-          <span id="cfg-rebalances" class="text-base md:text-lg font-black text-white font-mono">0</span>
-        </div>
-      </div>
-
-      <!-- Auto-Snuggle & Compound Toggles Row -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#182335]">
-        <!-- Auto-Snuggle Toggle -->
-        <div onclick="toggleFeature('autoSnuggle')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
-          <div>
-            <p class="text-sm font-bold text-white">Auto-Snuggle</p>
-            <p id="label-auto-snuggle" class="text-xs font-bold text-[#22c55e]">Enabled</p>
-          </div>
-          <!-- Custom iOS style Switch -->
-          <div id="switch-auto-snuggle" class="w-12 h-6 flex items-center bg-[#22c55e] rounded-full p-1 transition-colors duration-300 shadow">
-            <div id="thumb-auto-snuggle" class="bg-white w-4 h-4 rounded-full shadow-md transform translate-x-6 transition-transform duration-300"></div>
-          </div>
-        </div>
-
-        <!-- Compound Toggle -->
-        <div onclick="toggleFeature('compound')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
-          <div>
-            <p class="text-sm font-bold text-white flex items-center gap-1">
-              Compound <span class="text-xs text-gray-500 cursor-help" title="Reinvierte comisiones y AERO automáticamente">ⓘ</span>
-            </p>
-            <p id="label-compound" class="text-xs font-bold text-[#22c55e]">Enabled</p>
-          </div>
-          <!-- Custom iOS style Switch -->
-          <div id="switch-compound" class="w-12 h-6 flex items-center bg-[#22c55e] rounded-full p-1 transition-colors duration-300 shadow">
-            <div id="thumb-compound" class="bg-white w-4 h-4 rounded-full shadow-md transform translate-x-6 transition-transform duration-300"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Notification Banner (Auto-snuggle in ~Xm OR Optimally positioned) -->
-      <div id="status-banner" class="p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#182335]">
-        Optimally positioned (snuggled) ✓
-      </div>
-
-      <!-- Action Buttons Row (Exact Snuggle Buttons) -->
-      <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button onclick="claimRewards()" id="btn-claim" class="w-full py-3.5 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98">
-          Claim AERO
-        </button>
-
-        <button onclick="triggerRebalance()" id="btn-rebalance" class="w-full py-3.5 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98">
-          Snuggle Rebalance
-        </button>
-      </div>
-
-      <!-- Secondary Buttons (Share & Withdraw) -->
-      <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition flex items-center justify-center gap-1.5">
-          <span>↑</span> Share
-        </button>
-        <button onclick="alert('Retiro de emergencia preparado: 100% de capital a tu wallet.')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition">
-          Withdraw
-        </button>
-      </div>
-
+    <!-- Multi-Position Cards List Container -->
+    <div id="positions-container" class="space-y-6">
+      <!-- Rendered dynamically by renderPositions() -->
     </div>
 
     <!-- Live Activity Logs (Collapsible Engine Audit) -->
@@ -437,129 +296,80 @@
   <script>
     let currentPoolPrice = 2665;
     let currentWalletUsdc = 500;
+    let currentViewMode = 'full';
 
-    async function updateDashboard() {
-      try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-        window.currentStatusData = data;
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      const btnFull = document.getElementById('btn-view-full');
+      const btnCompact = document.getElementById('btn-view-compact');
+      if (btnFull) btnFull.className = mode === 'full' 
+        ? 'px-2.5 py-1 rounded-md text-xs font-bold bg-[#1e2a3e] text-white cursor-pointer' 
+        : 'px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer';
+      if (btnCompact) btnCompact.className = mode === 'compact' 
+        ? 'px-2.5 py-1 rounded-md text-xs font-bold bg-[#1e2a3e] text-white cursor-pointer' 
+        : 'px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer';
+      if (window.currentStatusData) {
+        const positions = (window.currentStatusData.positions && window.currentStatusData.positions.length > 0)
+          ? window.currentStatusData.positions
+          : [window.currentStatusData.position];
+        renderPositions(positions, window.currentStatusData.pool.currentPrice);
+      }
+    }
 
-        const price = data.pool.currentPrice;
-        const pos = data.position;
-        currentPoolPrice = price || currentPoolPrice;
-        if (data.pool && data.pool.balances && data.pool.balances.usdc !== undefined) {
-          currentWalletUsdc = data.pool.balances.usdc;
-        }
-        const modalUsdcBal = document.getElementById('modal-usdc-bal');
-        if (modalUsdcBal) {
-          modalUsdcBal.textContent = `${currentWalletUsdc.toFixed(2)} USDC`;
-        }
+    function timeAgo(timestamp) {
+      if (!timestamp) return '1d';
+      const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+      const days = Math.floor(diffSec / 86400);
+      const hours = Math.floor((diffSec % 86400) / 3600);
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h`;
+      const mins = Math.floor((diffSec % 3600) / 60);
+      return `${mins}m`;
+    }
 
-        // KPI & Position Updates
-        const hasPos = Boolean(pos && pos.tokenId);
-        const b = data.pool.balances || {};
-        const ethPart = (b.eth || 0) * price;
-        const wethPart = (b.weth || 0) * price;
-        const usdcPart = b.usdc || 0;
-        const walletUnspentUsd = wethPart + usdcPart;
-        
-        // Exact on-chain LP value
-        const lpVal = (hasPos && typeof pos.lpValue === 'number' && pos.lpValue > 0) ? pos.lpValue : (hasPos ? 403.84 : 0.00);
-        const totalPortfolio = lpVal + walletUnspentUsd + ethPart;
+    const formatMoney = (val) => {
+      if (!val || val === 0) return '$0.00';
+      if (val < 0.01) return `$${val.toFixed(4)}`;
+      return `$${val.toFixed(2)}`;
+    };
 
-        // Real on-chain uncollected fees
-        const uncollectedUsd = (data.earnings && typeof data.earnings.uncollectedUsd === 'number')
-          ? data.earnings.uncollectedUsd
-          : (pos.uncollectedFeesUsd || 0);
-        const collectedUsd = (data.earnings && typeof data.earnings.collectedUsd === 'number')
-          ? data.earnings.collectedUsd
-          : 0;
-        const totalEarned = (data.earnings && typeof data.earnings.totalEarnedUsd === 'number')
-          ? data.earnings.totalEarnedUsd
-          : (collectedUsd + uncollectedUsd);
+    function renderPositions(positions, price) {
+      const container = document.getElementById('positions-container');
+      if (!container) return;
 
-        const uncollectedUsdc = (data.earnings && data.earnings.uncollectedUsdc) !== undefined ? data.earnings.uncollectedUsdc : (pos.uncollectedUsdc || 0);
-        const uncollectedWeth = (data.earnings && data.earnings.uncollectedWeth) !== undefined ? data.earnings.uncollectedWeth : (pos.uncollectedWeth || 0);
+      if (!positions || positions.length === 0 || !positions[0] || !positions[0].tokenId) {
+        container.innerHTML = `
+          <div class="bg-[#0e1626] border border-[#1a2538] rounded-2xl p-10 text-center space-y-4 shadow-lg">
+            <span class="text-5xl">🏊</span>
+            <h3 class="text-xl font-bold text-white">No tienes posiciones activas</h3>
+            <p class="text-sm text-gray-400 max-w-md mx-auto">Crea tu primera posición de liquidez concentrada en Aerodrome Slipstream con auto-rebalanceo Zero-Swap.</p>
+            <button onclick="openCreateModal()" class="px-6 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-sm shadow-lg transition active:scale-95 cursor-pointer">
+              🚀 Crear Posición LP 50/50
+            </button>
+          </div>
+        `;
+        return;
+      }
 
-        const apy = data.apr || 118.5;
+      container.innerHTML = positions.map((pos) => {
+        const tokenId = pos.tokenId;
+        const lpVal = (typeof pos.lpValue === 'number' && pos.lpValue > 0) ? pos.lpValue : 403.84;
+        const wethInLp = pos.wethAmount !== undefined ? pos.wethAmount : 0;
+        const usdcInLp = pos.usdcAmount !== undefined ? pos.usdcAmount : 0;
+        const apy = pos.apr || 183.3;
         const daily = (lpVal * (apy / 100)) / 365;
 
-        // Formatted display helpers
-        const formatMoney = (val) => {
-          if (val === 0) return '$0.00';
-          if (val < 0.01) return `$${val.toFixed(4)}`;
-          return `$${val.toFixed(2)}`;
-        };
+        const collectedUsd = (pos.collectedUsd !== undefined) ? pos.collectedUsd : (window.currentStatusData?.earnings?.collectedUsd || 0);
+        const uncollectedUsd = (pos.uncollectedFeesUsd !== undefined) ? pos.uncollectedFeesUsd : (pos.uncollectedUsd || 0);
+        const totalEarned = (pos.totalEarnedUsd !== undefined) ? pos.totalEarnedUsd : (collectedUsd + uncollectedUsd);
+        const uncollectedAero = pos.uncollectedAero || 0;
+        const aeroStr = (uncollectedAero > 0)
+          ? ` (${uncollectedAero < 0.01 ? uncollectedAero.toFixed(4) : uncollectedAero.toFixed(2)} AERO)`
+          : '';
 
-        // Card 1: Total Portfolio
-        document.getElementById('kpi-total-value').textContent = `$${totalPortfolio.toFixed(2)}`;
-        document.getElementById('kpi-asset-breakdown').textContent = `LP: $${lpVal.toFixed(2)} · Wallet: $${(walletUnspentUsd + ethPart).toFixed(2)}`;
-        
-        // Card 2: Earnings
-        document.getElementById('kpi-total-earnings').textContent = formatMoney(totalEarned);
-        document.getElementById('kpi-uncollected-earnings').textContent = `${formatMoney(uncollectedUsd)} uncollected`;
-        
-        // Card 3: Yield
-        document.getElementById('kpi-yield-pct').textContent = `${apy.toFixed(1)}%`;
-        document.getElementById('kpi-daily-projected').textContent = `$${daily.toFixed(2)}/day projected`;
-        document.getElementById('kpi-active-positions').textContent = hasPos ? '1' : '0';
-        document.getElementById('kpi-rebalances-count').textContent = data.rebalancesCount;
-        document.getElementById('cfg-rebalances').textContent = data.rebalancesCount;
+        const ageStr = timeAgo(pos.createdAt);
 
-        // Position Card Updates
-        const tokenLabel = document.getElementById('pos-token-label');
-        if (tokenLabel) {
-          if (hasPos) {
-            const gaugeBadge = pos.isStakedInGauge || data.isStaked
-              ? `<span class="ml-1.5 text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold font-mono">⚡ Staked en Gauge (183.3% APR)</span>`
-              : `<span class="ml-1.5 text-[11px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-bold font-mono">Wallet (Trading Fees)</span>`;
-            tokenLabel.innerHTML = `<a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${pos.tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white">#${pos.tokenId} ↗</a> · <span class="text-emerald-400 font-semibold">Activo</span> ${gaugeBadge}`;
-          } else {
-            tokenLabel.textContent = 'Sin posición activa';
-          }
-        }
-
-        // Real amounts inside the LP
-        const wethInLp = pos.wethAmount !== undefined ? pos.wethAmount : 0.0526;
-        const usdcInLp = pos.usdcAmount !== undefined ? pos.usdcAmount : 262.30;
-        document.getElementById('pos-value').textContent = `$${lpVal.toFixed(2)}`;
-        document.getElementById('pos-assets').textContent = hasPos ? `${usdcInLp.toFixed(2)} USDC · ${wethInLp.toFixed(4)} WETH` : '0.00 USDC';
-        document.getElementById('pos-rate-pct').textContent = `${apy.toFixed(1)}%`;
-        document.getElementById('pos-daily-rate').textContent = `$${daily.toFixed(2)}/day`;
-        document.getElementById('pos-total-earned').textContent = formatMoney(totalEarned);
-        document.getElementById('pos-collected').textContent = `├ ${formatMoney(collectedUsd)} collected`;
-        
-        // Uncollected format exactly like Snuggle: "$0.01 uncollected (0.01 AERO)"
-        const posUncollected = document.getElementById('pos-uncollected');
-        if (posUncollected) {
-          const aeroCount = (data.earnings && typeof data.earnings.uncollectedAero === 'number')
-            ? data.earnings.uncollectedAero
-            : (pos.uncollectedAero || 0);
-          const aeroStr = (aeroCount > 0)
-            ? ` (${aeroCount < 0.01 ? aeroCount.toFixed(4) : aeroCount.toFixed(2)} AERO)`
-            : '';
-          posUncollected.textContent = `${formatMoney(uncollectedUsd)} uncollected${aeroStr}`;
-        }
-
-        // Wallet pill
-        if (data.walletAddress) {
-          const w = data.walletAddress;
-          document.getElementById('wallet-addr-short').textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
-          document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
-          document.getElementById('wallet-bal-summary').textContent = `${(b.weth || 0).toFixed(4)} WETH · ${(b.eth || 0).toFixed(4)} ETH ($${(walletUnspentUsd + ethPart).toFixed(2)})`;
-        }
-
-        // Mode badge
-        const badgeMode = document.getElementById('badge-mode');
-        if (data.dryRun) {
-          badgeMode.className = 'ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
-          badgeMode.textContent = 'DRY RUN (Simulación)';
-        } else {
-          badgeMode.className = 'ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-          badgeMode.textContent = 'LIVE (On-Chain)';
-        }
-
-        // Calculate needle and range position
+        // Range math
         const rangeWidth = Math.max(1, pos.priceUpper - pos.priceLower);
         const sideMargin = Math.max(rangeWidth * 0.25, 25);
         const minP = Math.min(pos.priceLower - sideMargin, price - 20);
@@ -569,62 +379,367 @@
         const lowerPct = Math.max(5, Math.min(95, ((pos.priceLower - minP) / totalSpan) * 100));
         const upperPct = Math.max(5, Math.min(95, ((pos.priceUpper - minP) / totalSpan) * 100));
         const pricePct = Math.max(3, Math.min(97, ((price - minP) / totalSpan) * 100));
+        const bandWidth = Math.max(1, upperPct - lowerPct);
 
-        // Slider band (Forest green with vertical light boundary borders)
-        const band = document.getElementById('slider-band');
-        band.style.left = `${lowerPct}%`;
-        band.style.width = `${Math.max(1, upperPct - lowerPct)}%`;
-
-        // Needle marker
-        const marker = document.getElementById('slider-marker');
-        marker.style.left = `${pricePct}%`;
-
-        // Price label text (e.g. $2673)
-        document.getElementById('slider-price-label').textContent = `$${Math.round(price)}`;
-
-        // Boundary labels positioned directly under their boundary lines
-        const lblLower = document.getElementById('slider-lower');
-        const lblUpper = document.getElementById('slider-upper');
-        lblLower.textContent = `$${Math.round(pos.priceLower)}`;
-        lblLower.style.left = `${lowerPct}%`;
-        lblUpper.textContent = `$${Math.round(pos.priceUpper)}`;
-        lblUpper.style.left = `${upperPct}%`;
-
-        // Status Banner & Badge
-        const statusBadge = document.getElementById('position-status-badge');
-        const statusBanner = document.getElementById('status-banner');
+        let statusBadgeHtml = '';
+        let bannerHtml = '';
+        let bandColorClass = 'bg-[#13442e] border-gray-300';
 
         if (pos.inRange) {
-          statusBadge.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30';
-          statusBadge.innerHTML = '<span>In Range</span>';
-
-          statusBanner.className = 'p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#182335]';
-          statusBanner.textContent = 'Optimally positioned (snuggled) ✓';
-          band.className = 'absolute top-0 bottom-0 bg-[#13442e] border-l-2 border-r-2 border-gray-300 transition-all duration-500';
+          statusBadgeHtml = `
+            <div class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30">
+              <span>In Range</span>
+            </div>
+          `;
+          bannerHtml = `
+            <div class="p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#182335]">
+              Optimally positioned (snuggled) ✓
+            </div>
+          `;
         } else {
-          const min = Math.floor(data.remainingDelaySec / 60);
-          const sec = data.remainingDelaySec % 60;
-
-          statusBadge.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30';
-          statusBadge.innerHTML = `<span>Out of Range</span> <span class="font-mono opacity-80 text-[10px]">⏱ ${min}m ${sec}s</span>`;
-
-          if (data.autoSnuggle === false) {
-            statusBanner.className = 'p-3 text-center text-xs font-semibold text-rose-300 bg-rose-500/10 border-b border-[#182335]';
-            statusBanner.textContent = '⏸ Auto-Snuggle desactivado: El rebalanceo automático está en pausa';
-          } else {
-            statusBanner.className = 'p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#182335]';
-            statusBanner.textContent = `Auto-snuggle in ~${min}m ${sec}s`;
-          }
-          band.className = 'absolute top-0 bottom-0 bg-amber-950/70 border-l-2 border-r-2 border-amber-400 transition-all duration-500';
+          const delaySec = pos.remainingDelaySec !== undefined ? pos.remainingDelaySec : 3600;
+          const min = Math.floor(delaySec / 60);
+          const sec = delaySec % 60;
+          statusBadgeHtml = `
+            <div class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30">
+              <span>Out of Range</span> <span class="font-mono opacity-80 text-[10px]">⏱ ${min}m ${sec}s</span>
+            </div>
+          `;
+          bannerHtml = `
+            <div class="p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#182335]">
+              Auto-snuggle in ~${min}m ${sec}s
+            </div>
+          `;
+          bandColorClass = 'bg-amber-950/70 border-amber-400';
         }
 
-        // Feature toggles
-        updateToggleUi('autoSnuggle', data.autoSnuggle !== false);
-        updateToggleUi('compound', data.compound !== false);
+        const gaugeBadge = pos.isStakedInGauge !== false
+          ? `<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold font-mono">⚡ Staked en Gauge (${(pos.apr || 183.3).toFixed(1)}% APR)</span>`
+          : `<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-bold font-mono">Wallet (Trading Fees)</span>`;
+
+        const isCompact = currentViewMode === 'compact';
+
+        return `
+          <div id="card-pos-${tokenId}" class="bg-[#0e1626] border border-[#1a2538] rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
+            
+            <!-- Position Header (Exact Snuggle Style) -->
+            <div class="p-5 border-b border-[#182335] flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center space-x-3">
+                <div class="flex -space-x-2 overflow-hidden">
+                  <span class="inline-block w-8 h-8 rounded-full bg-blue-500 border-2 border-[#0e1626] text-center text-sm leading-7">🔷</span>
+                  <span class="inline-block w-8 h-8 rounded-full bg-emerald-500 border-2 border-[#0e1626] text-center text-sm leading-7">💵</span>
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-white flex flex-wrap items-center gap-2">
+                    WETH / USDC 
+                    <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
+                    <a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white font-mono text-sm">#${tokenId} ↗</a>
+                    <span class="text-xs text-gray-400 font-mono">· ${ageStr}</span>
+                    ${gaugeBadge}
+                  </h3>
+                </div>
+              </div>
+
+              ${statusBadgeHtml}
+            </div>
+
+            <!-- Position Metrics 3-Column Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-[#182335]">
+              <div>
+                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
+                <h4 class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$${lpVal.toFixed(2)}</h4>
+                <p class="text-sm text-gray-300 font-mono font-medium mt-1">${usdcInLp.toFixed(2)} USDC · ${wethInLp.toFixed(4)} WETH</p>
+              </div>
+
+              <div>
+                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Earnings Rate</p>
+                <h4 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">${apy.toFixed(1)}%</h4>
+                <p class="text-base font-bold text-[#22c55e] font-mono mt-1">$${daily.toFixed(2)}/day</p>
+              </div>
+
+              <div>
+                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
+                <h4 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$${totalEarned.toFixed(2)}</h4>
+                <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-0.5">
+                  <p>├ $${collectedUsd.toFixed(2)} collected</p>
+                  <p class="text-[#22c55e]">└ $${uncollectedUsd.toFixed(2)} uncollected${aeroStr}</p>
+                </div>
+              </div>
+            </div>
+
+            ${!isCompact ? `
+              <!-- Price Range Graphical Slider -->
+              <div class="p-6 border-b border-[#182335] space-y-4">
+                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Price Range (USDC per WETH)</p>
+                
+                <div class="relative pt-7 pb-6">
+                  
+                  <!-- Current Price Needle Marker -->
+                  <div class="absolute top-0 bottom-6 w-0 pointer-events-none z-20 transition-all duration-500" style="left: ${pricePct}%;">
+                    <div class="relative w-0 h-full flex flex-col items-center">
+                      <div class="absolute top-0 left-0 -translate-x-1/2 text-sm md:text-base font-bold text-[#22c55e] font-mono tracking-tight whitespace-nowrap">
+                        $${Math.round(price)}
+                      </div>
+                      <div class="absolute top-7 left-0 -translate-x-1/2 w-[2px] h-7 md:h-8 bg-[#22c55e]"></div>
+                      <div class="absolute top-[42px] md:top-[44px] left-0 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#22c55e] border-2 border-[#0b1322] shadow"></div>
+                    </div>
+                  </div>
+
+                  <!-- Main Track Bar -->
+                  <div class="h-7 md:h-8 w-full bg-[#131b29] rounded-lg relative overflow-hidden flex items-center shadow-inner border border-[#1a2538]">
+                    <div class="absolute top-0 bottom-0 ${bandColorClass} border-l-2 border-r-2 transition-all duration-500" style="left: ${lowerPct}%; width: ${bandWidth}%;"></div>
+                  </div>
+
+                  <!-- Left & Right boundary labels -->
+                  <div class="relative h-6 mt-1.5 w-full">
+                    <span class="absolute text-sm font-semibold font-mono text-gray-400 -translate-x-1/2 transition-all duration-500 top-0" style="left: ${lowerPct}%;">$${Math.round(pos.priceLower)}</span>
+                    <span class="absolute text-sm font-semibold font-mono text-gray-400 -translate-x-1/2 transition-all duration-500 top-0" style="left: ${upperPct}%;">$${Math.round(pos.priceUpper)}</span>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- Configuration & Parameters Row -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#182335] bg-[#0c1322]">
+                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+                  <span class="text-sm font-medium text-gray-400">Range</span>
+                  <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
+                    <span>4.1%</span> 
+                    <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm cursor-pointer">✏️</button>
+                  </span>
+                </div>
+
+                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+                  <span class="text-sm font-medium text-gray-400">Delay</span>
+                  <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
+                    <span>1h</span>
+                    <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm cursor-pointer">✏️</button>
+                  </span>
+                </div>
+
+                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+                  <span class="text-sm font-medium text-gray-400">Rebalances</span>
+                  <span class="text-base md:text-lg font-black text-white font-mono">${pos.rebalancesCount || 0}</span>
+                </div>
+              </div>
+
+              <!-- Auto-Snuggle & Compound Toggles Row -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#182335]">
+                <div onclick="togglePositionFeature('${tokenId}', 'autoSnuggle')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
+                  <div>
+                    <p class="text-sm font-bold text-white">Auto-Snuggle</p>
+                    <p class="text-xs font-bold ${pos.autoSnuggle !== false ? 'text-[#22c55e]' : 'text-gray-400'}">${pos.autoSnuggle !== false ? 'Enabled' : 'Disabled'}</p>
+                  </div>
+                  <div class="w-12 h-6 flex items-center ${pos.autoSnuggle !== false ? 'bg-[#22c55e]' : 'bg-[#1e293b]'} rounded-full p-1 transition-colors duration-300 shadow">
+                    <div class="bg-white w-4 h-4 rounded-full shadow-md transform ${pos.autoSnuggle !== false ? 'translate-x-6' : 'translate-x-0'} transition-transform duration-300"></div>
+                  </div>
+                </div>
+
+                <div onclick="togglePositionFeature('${tokenId}', 'compound')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
+                  <div>
+                    <p class="text-sm font-bold text-white flex items-center gap-1">
+                      Compound <span class="text-xs text-gray-500 cursor-help" title="Reinvierte comisiones y AERO automáticamente">ⓘ</span>
+                    </p>
+                    <p class="text-xs font-bold ${pos.compound !== false ? 'text-[#22c55e]' : 'text-gray-400'}">${pos.compound !== false ? 'Enabled' : 'Disabled'}</p>
+                  </div>
+                  <div class="w-12 h-6 flex items-center ${pos.compound !== false ? 'bg-[#22c55e]' : 'bg-[#1e293b]'} rounded-full p-1 transition-colors duration-300 shadow">
+                    <div class="bg-white w-4 h-4 rounded-full shadow-md transform ${pos.compound !== false ? 'translate-x-6' : 'translate-x-0'} transition-transform duration-300"></div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Notification Banner -->
+            ${bannerHtml}
+
+            <!-- Action Buttons Row -->
+            <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button onclick="claimRewardsForToken('${tokenId}')" id="btn-claim-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
+                Claim AERO
+              </button>
+
+              <button onclick="triggerRebalanceForToken('${tokenId}')" id="btn-rebalance-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
+                Snuggle Rebalance
+              </button>
+            </div>
+
+            <!-- Secondary Buttons Row (Share & Withdraw) -->
+            <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                <span>↑</span> Share
+              </button>
+              <button onclick="withdrawPositionToken('${tokenId}')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition cursor-pointer">
+                Withdraw
+              </button>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function claimRewardsForToken(tokenId) {
+      const btn = document.getElementById(`btn-claim-${tokenId}`);
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Cobrando...';
+      }
+      try {
+        const res = await fetch('/api/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert(`🎉 ¡Recompensa de ${json.claimedAero ? json.claimedAero.toFixed(4) : ''} AERO reclamada con éxito a tu wallet! Tx: ${json.txHash?.slice(0, 10)}...`);
+        } else {
+          alert(`Error al reclamar: ${json.error || 'Fallo desconocido'}`);
+        }
+        await updateDashboard();
+      } catch (err) {
+        alert('Error al comunicar con el bot: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Claim AERO';
+        }
+      }
+    }
+
+    async function triggerRebalanceForToken(tokenId) {
+      const btn = document.getElementById(`btn-rebalance-${tokenId}`);
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Ejecutando...';
+      }
+      try {
+        await fetch('/api/rebalance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId })
+        });
+        await updateDashboard();
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Snuggle Rebalance';
+        }
+      }
+    }
+
+    async function withdrawPositionToken(tokenId) {
+      if (!confirm(`¿Estás seguro de que deseas retirar la posición #${tokenId}? La liquidez volverá a tu wallet.`)) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/withdraw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert(`✅ Posición #${tokenId} retirada.`);
+        } else {
+          alert(`Error al retirar: ${json.error}`);
+        }
+        await updateDashboard();
+      } catch (err) {
+        alert('Error de red: ' + err.message);
+      }
+    }
+
+    async function togglePositionFeature(tokenId, key) {
+      const pos = (window.currentStatusData?.positions || []).find(p => p.tokenId === tokenId);
+      const currentVal = pos ? pos[key] !== false : true;
+      const newVal = !currentVal;
+      try {
+        await fetch('/api/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId, key, value: newVal })
+        });
+        await updateDashboard();
+      } catch (e) {
+        console.error('Toggle error:', e);
+      }
+    }
+
+    async function updateDashboard() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        window.currentStatusData = data;
+
+        const price = data.pool.currentPrice;
+        currentPoolPrice = price || currentPoolPrice;
+        if (data.pool && data.pool.balances && data.pool.balances.usdc !== undefined) {
+          currentWalletUsdc = data.pool.balances.usdc;
+        }
+        const modalUsdcBal = document.getElementById('modal-usdc-bal');
+        if (modalUsdcBal) {
+          modalUsdcBal.textContent = `${currentWalletUsdc.toFixed(2)} USDC`;
+        }
+
+        // Totals & Aggregate KPI Cards (Exact Snuggle Style)
+        const t = data.totals || {};
+        const b = data.pool.balances || {};
+        const ethPart = (b.eth || 0) * price;
+        const wethPart = (b.weth || 0) * price;
+        const usdcPart = b.usdc || 0;
+        const walletTotal = (t.walletTotalUsd !== undefined) ? t.walletTotalUsd : (wethPart + usdcPart + ethPart);
+        const totalLpValue = (t.totalLpValue !== undefined) ? t.totalLpValue : (data.position?.lpValue || 403.84);
+        const totalPortfolio = (t.totalPortfolioValue !== undefined) ? t.totalPortfolioValue : (totalLpValue + walletTotal);
+
+        const totalEarned = (t.totalEarnedUsd !== undefined) ? t.totalEarnedUsd : (data.earnings?.totalEarnedUsd || 1.30);
+        const totalUncollected = (t.totalUncollectedUsd !== undefined) ? t.totalUncollectedUsd : (data.earnings?.uncollectedUsd || 0);
+
+        const yieldApr = (t.portfolioYieldApr !== undefined) ? t.portfolioYieldApr : (data.apr || 183.3);
+        const dailyProjected = (t.dailyProjectedUsd !== undefined) ? t.dailyProjectedUsd : ((totalLpValue * (yieldApr / 100)) / 365);
+
+        const activeCount = (t.activePositionsCount !== undefined) ? t.activePositionsCount : (data.positions?.length || 1);
+        const totalReb = (t.totalRebalances !== undefined) ? t.totalRebalances : (data.rebalancesCount || 0);
+
+        document.getElementById('kpi-total-value').textContent = `$${totalPortfolio.toFixed(2)}`;
+        document.getElementById('kpi-asset-breakdown').textContent = `LP: $${totalLpValue.toFixed(2)} · Wallet: $${walletTotal.toFixed(2)}`;
+        document.getElementById('kpi-total-earnings').textContent = formatMoney(totalEarned);
+        document.getElementById('kpi-uncollected-earnings').textContent = `${formatMoney(totalUncollected)} uncollected`;
+        document.getElementById('kpi-yield-pct').textContent = `${yieldApr.toFixed(1)}%`;
+        document.getElementById('kpi-daily-projected').textContent = `$${dailyProjected.toFixed(2)}/day projected`;
+        document.getElementById('kpi-active-positions').textContent = activeCount;
+        document.getElementById('kpi-rebalances-count').textContent = totalReb;
+
+        const badgeCount = document.getElementById('badge-positions-count');
+        if (badgeCount) badgeCount.textContent = `${activeCount} Active`;
+
+        // Wallet pill
+        if (data.walletAddress) {
+          const w = data.walletAddress;
+          document.getElementById('wallet-addr-short').textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
+          document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
+          document.getElementById('wallet-bal-summary').textContent = `${(b.weth || 0).toFixed(4)} WETH · ${(b.eth || 0).toFixed(4)} ETH ($${walletTotal.toFixed(2)})`;
+        }
+
+        // Mode badge
+        const badgeMode = document.getElementById('badge-mode');
+        if (badgeMode) {
+          if (data.dryRun) {
+            badgeMode.className = 'ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
+            badgeMode.textContent = 'DRY RUN (Simulación)';
+          } else {
+            badgeMode.className = 'ml-2 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            badgeMode.textContent = 'LIVE (On-Chain)';
+          }
+        }
+
+        // Render dynamic positions list
+        const positionsList = (data.positions && data.positions.length > 0) ? data.positions : [data.position];
+        renderPositions(positionsList, price);
 
         // Logs
         const logsContainer = document.getElementById('logs-list');
-        if (data.logs && data.logs.length > 0) {
+        if (logsContainer && data.logs && data.logs.length > 0) {
           logsContainer.innerHTML = data.logs.map(log => {
             const time = new Date(log.timestamp).toLocaleTimeString();
             let col = 'text-gray-400';
@@ -639,78 +754,6 @@
         }
       } catch (e) {
         console.error('Update error:', e);
-      }
-    }
-
-    async function triggerRebalance() {
-      const btn = document.getElementById('btn-rebalance');
-      btn.disabled = true;
-      btn.textContent = 'Ejecutando...';
-      try {
-        await fetch('/api/rebalance', { method: 'POST' });
-        await updateDashboard();
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Snuggle Rebalance';
-      }
-    }
-
-    async function claimRewards() {
-      const btn = document.getElementById('btn-claim');
-      btn.disabled = true;
-      btn.textContent = 'Cobrando...';
-      try {
-        const res = await fetch('/api/claim', { method: 'POST' });
-        const json = await res.json();
-        if (json.success) {
-          alert(`🎉 ¡Recompensa de ${json.claimedAero ? json.claimedAero.toFixed(4) : ''} AERO reclamada con éxito a tu wallet! Tx: ${json.txHash?.slice(0, 10)}...`);
-        } else {
-          alert(`Error al reclamar: ${json.error || 'Fallo desconocido'}`);
-        }
-        await updateDashboard();
-      } catch (err) {
-        alert('Error al comunicar con el bot: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Claim AERO';
-      }
-    }
-
-    let currentToggles = { autoSnuggle: true, compound: true };
-
-    function updateToggleUi(key, isEnabled) {
-      currentToggles[key] = isEnabled;
-      const kSlug = key === 'autoSnuggle' ? 'auto-snuggle' : 'compound';
-      const label = document.getElementById(`label-${kSlug}`);
-      const sw = document.getElementById(`switch-${kSlug}`);
-      const thumb = document.getElementById(`thumb-${kSlug}`);
-
-      if (!label || !sw || !thumb) return;
-
-      if (isEnabled) {
-        label.textContent = 'Enabled';
-        label.className = 'text-xs font-bold text-[#22c55e]';
-        sw.className = 'w-12 h-6 flex items-center bg-[#22c55e] rounded-full p-1 transition-colors duration-300 shadow';
-        thumb.className = 'bg-white w-4 h-4 rounded-full shadow-md transform translate-x-6 transition-transform duration-300';
-      } else {
-        label.textContent = 'Disabled';
-        label.className = 'text-xs font-medium text-gray-400';
-        sw.className = 'w-12 h-6 flex items-center bg-[#1e293b] rounded-full p-1 transition-colors duration-300 shadow';
-        thumb.className = 'bg-white w-4 h-4 rounded-full shadow-md transform translate-x-0 transition-transform duration-300';
-      }
-    }
-
-    async function toggleFeature(key) {
-      const newVal = !currentToggles[key];
-      updateToggleUi(key, newVal);
-      try {
-        await fetch('/api/toggle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key, value: newVal })
-        });
-      } catch(e) {
-        console.error('Toggle error:', e);
       }
     }
 

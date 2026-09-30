@@ -1,7 +1,22 @@
 import fs from 'fs';
 import path from 'path';
 
+export interface PositionItem {
+  tokenId: string;
+  tickLower: number;
+  tickUpper: number;
+  priceLower: number;
+  priceUpper: number;
+  inRange: boolean;
+  outOfRangeSince: number | null;
+  rebalancesCount: number;
+  createdAt: number;
+  autoSnuggle?: boolean;
+  compound?: boolean;
+}
+
 export interface BotState {
+  positions: PositionItem[];
   activePosition: {
     tokenId: string | null;
     tickLower: number;
@@ -17,6 +32,7 @@ export interface BotState {
   compound: boolean;
   rebalanceHistory: Array<{
     timestamp: number;
+    tokenId?: string;
     direction: 'UP' | 'DOWN';
     price: number;
     oldRange: [number, number];
@@ -33,6 +49,7 @@ export interface BotState {
 const DATA_FILE = path.join(__dirname, '../../data/bot-state.json');
 
 const DEFAULT_STATE: BotState = {
+  positions: [],
   activePosition: {
     tokenId: null,
     tickLower: -198000,
@@ -61,7 +78,27 @@ export class StorageService {
     try {
       if (fs.existsSync(DATA_FILE)) {
         const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (!parsed.positions || !Array.isArray(parsed.positions) || parsed.positions.length === 0) {
+          if (parsed.activePosition && parsed.activePosition.tokenId) {
+            parsed.positions = [{
+              tokenId: parsed.activePosition.tokenId,
+              tickLower: parsed.activePosition.tickLower,
+              tickUpper: parsed.activePosition.tickUpper,
+              priceLower: parsed.activePosition.priceLower,
+              priceUpper: parsed.activePosition.priceUpper,
+              inRange: parsed.activePosition.inRange ?? true,
+              outOfRangeSince: parsed.outOfRangeSince ?? null,
+              rebalancesCount: parsed.rebalancesCount ?? 0,
+              createdAt: Date.now() - 36000000,
+              autoSnuggle: parsed.autoSnuggle ?? true,
+              compound: parsed.compound ?? true
+            }];
+          } else {
+            parsed.positions = [];
+          }
+        }
+        return parsed;
       }
     } catch (e) {
       console.error('Error loading bot-state.json, using defaults:', e);
@@ -87,6 +124,67 @@ export class StorageService {
 
   public updateState(updater: (state: BotState) => void): void {
     updater(this.state);
+    this.save();
+  }
+
+  public addPosition(pos: PositionItem): void {
+    if (!this.state.positions) this.state.positions = [];
+    const idx = this.state.positions.findIndex(p => p.tokenId === pos.tokenId);
+    if (idx >= 0) {
+      this.state.positions[idx] = pos;
+    } else {
+      this.state.positions.push(pos);
+    }
+    if (this.state.positions.length > 0) {
+      this.state.activePosition = {
+        tokenId: this.state.positions[0].tokenId,
+        tickLower: this.state.positions[0].tickLower,
+        tickUpper: this.state.positions[0].tickUpper,
+        priceLower: this.state.positions[0].priceLower,
+        priceUpper: this.state.positions[0].priceUpper,
+        inRange: this.state.positions[0].inRange
+      };
+    }
+    this.save();
+  }
+
+  public updatePosition(tokenId: string, updater: (pos: PositionItem) => void): void {
+    if (!this.state.positions) return;
+    const pos = this.state.positions.find(p => p.tokenId === tokenId);
+    if (pos) {
+      updater(pos);
+      if (this.state.positions[0]?.tokenId === tokenId) {
+        this.state.activePosition = {
+          tokenId: pos.tokenId,
+          tickLower: pos.tickLower,
+          tickUpper: pos.tickUpper,
+          priceLower: pos.priceLower,
+          priceUpper: pos.priceUpper,
+          inRange: pos.inRange
+        };
+      }
+      this.save();
+    }
+  }
+
+  public removePosition(tokenId: string): void {
+    if (!this.state.positions) return;
+    this.state.positions = this.state.positions.filter(p => p.tokenId !== tokenId);
+    if (this.state.activePosition.tokenId === tokenId) {
+      if (this.state.positions.length > 0) {
+        const first = this.state.positions[0];
+        this.state.activePosition = {
+          tokenId: first.tokenId,
+          tickLower: first.tickLower,
+          tickUpper: first.tickUpper,
+          priceLower: first.priceLower,
+          priceUpper: first.priceUpper,
+          inRange: first.inRange
+        };
+      } else {
+        this.state.activePosition = { ...DEFAULT_STATE.activePosition };
+      }
+    }
     this.save();
   }
 

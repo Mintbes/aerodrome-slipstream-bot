@@ -18,35 +18,71 @@ export function createServer(keeper: KeeperEngine) {
   app.use(express.static(publicPath));
 
   // API Status endpoint for live dashboard updates
+  // API Status endpoint for live dashboard updates
   app.get('/api/status', async (req, res) => {
     try {
       const botState = keeper.getStorage().getState();
       const poolState = keeper.lastPoolState || await keeper.getService().getPoolState();
+      const currentPrice = poolState.currentPrice;
 
-      let remainingDelaySec = 0;
-      if (botState.outOfRangeSince) {
-        const elapsedSec = Math.floor((Date.now() - botState.outOfRangeSince) / 1000);
-        remainingDelaySec = Math.max(0, config.rebalanceDelaySeconds - elapsedSec);
-      }
+      const rawPositions = (botState.positions && botState.positions.length > 0)
+        ? botState.positions
+        : (botState.activePosition?.tokenId ? [{
+            tokenId: botState.activePosition.tokenId,
+            tickLower: botState.activePosition.tickLower,
+            tickUpper: botState.activePosition.tickUpper,
+            priceLower: botState.activePosition.priceLower,
+            priceUpper: botState.activePosition.priceUpper,
+            inRange: botState.activePosition.inRange ?? true,
+            outOfRangeSince: botState.outOfRangeSince ?? null,
+            rebalancesCount: botState.rebalancesCount ?? 0,
+            createdAt: Date.now() - 36000000,
+            autoSnuggle: botState.autoSnuggle,
+            compound: botState.compound
+          }] : []);
 
-      let positionData: any = { ...botState.activePosition };
-      let uncollectedFeesUsd = 0;
-      let uncollectedWeth = 0;
-      let uncollectedUsdc = 0;
-      let uncollectedAero = 0;
-      let isStaked = true;
-      let aprPct = 183.3;
+      const positions = await Promise.all(rawPositions.map(async (pos) => {
+        let remainingDelaySec = 0;
+        if (pos.outOfRangeSince) {
+          const elapsedSec = Math.floor((Date.now() - pos.outOfRangeSince) / 1000);
+          remainingDelaySec = Math.max(0, config.rebalanceDelaySeconds - elapsedSec);
+        }
 
-      if (botState.activePosition && botState.activePosition.tokenId) {
-        const amounts = await keeper.getService().getPositionAmounts(botState.activePosition.tokenId, poolState.currentPrice);
-        uncollectedFeesUsd = amounts.uncollectedFeesUsd;
-        uncollectedWeth = amounts.uncollectedWeth;
-        uncollectedUsdc = amounts.uncollectedUsdc;
-        uncollectedAero = amounts.uncollectedAero;
-        isStaked = amounts.isStakedInGauge;
-        aprPct = amounts.apr || 183.3;
-        positionData = {
-          ...positionData,
+        let amounts = {
+          wethAmount: 0,
+          usdcAmount: 0,
+          lpValueUsd: 0,
+          uncollectedWeth: 0,
+          uncollectedUsdc: 0,
+          uncollectedAero: 0,
+          uncollectedFeesUsd: 0,
+          isStakedInGauge: true,
+          apr: 183.3
+        };
+
+        if (pos.tokenId) {
+          try {
+            amounts = await keeper.getService().getPositionAmounts(pos.tokenId, currentPrice);
+          } catch (e) {
+            console.error(`Error reading position #${pos.tokenId}:`, e);
+          }
+        }
+
+        const isCurrentlyInRange = keeper.getService().isTickInRange(poolState.currentTick, pos.tickLower, pos.tickUpper);
+
+        return {
+          tokenId: pos.tokenId,
+          tickLower: pos.tickLower,
+          tickUpper: pos.tickUpper,
+          priceLower: pos.priceLower,
+          priceUpper: pos.priceUpper,
+          inRange: isCurrentlyInRange,
+          outOfRangeSince: pos.outOfRangeSince,
+          remainingDelaySec,
+          rebalancesCount: pos.rebalancesCount || 0,
+          createdAt: pos.createdAt || (Date.now() - 36000000),
+          autoSnuggle: pos.autoSnuggle !== false,
+          compound: pos.compound !== false,
           wethAmount: amounts.wethAmount,
           usdcAmount: amounts.usdcAmount,
           lpValue: amounts.lpValueUsd,
@@ -54,38 +90,76 @@ export function createServer(keeper: KeeperEngine) {
           uncollectedUsdc: amounts.uncollectedUsdc,
           uncollectedAero: amounts.uncollectedAero,
           uncollectedFeesUsd: amounts.uncollectedFeesUsd,
-          isStakedInGauge: isStaked
+          isStakedInGauge: amounts.isStakedInGauge,
+          apr: amounts.apr,
+          dailyProjectedUsd: (amounts.lpValueUsd * (amounts.apr / 100)) / 365
         };
-      }
+      }));
 
-      const collectedFeesUsd = (botState.totalHarvestedAero || 0) * 0.81;
-      const totalEarnedUsd = collectedFeesUsd + uncollectedFeesUsd;
+      // Totals calculation
+      const totalLpValue = positions.reduce((sum, p) => sum + (p.lpValue || 0), 0);
+      const totalUncollectedUsd = positions.reduce((sum, p) => sum + (p.uncollectedFeesUsd || 0), 0);
+      const totalUncollectedAero = positions.reduce((sum, p) => sum + (p.uncollectedAero || 0), 0);
+      const totalCollectedUsd = (botState.totalHarvestedAero || 0) * 0.81;
+      const totalEarnedUsd = totalCollectedUsd + totalUncollectedUsd;
+      const totalRebalancesCount = positions.reduce((sum, p) => sum + (p.rebalancesCount || 0), 0);
+
+      const weightedApr = totalLpValue > 0
+        ? positions.reduce((sum, p) => sum + (p.lpValue * p.apr), 0) / totalLpValue
+        : 183.3;
+      const totalDailyProjectedUsd = (totalLpValue * (weightedApr / 100)) / 365;
+
+      const primaryPos = positions[0] || {
+        tokenId: null,
+        tickLower: -198000,
+        tickUpper: -196000,
+        priceLower: 2600,
+        priceUpper: 2750,
+        inRange: true,
+        lpValue: 0
+      };
+
+      const b = poolState.balances || { weth: 0, usdc: 0, aero: 0, eth: 0 };
+      const walletEthVal = (b.eth || 0) * currentPrice;
+      const walletWethVal = (b.weth || 0) * currentPrice;
+      const walletUsdcVal = b.usdc || 0;
+      const walletTotalUsd = walletWethVal + walletUsdcVal + walletEthVal;
+      const totalPortfolioValue = totalLpValue + walletTotalUsd;
 
       res.json({
         pool: {
           currentPrice: poolState.currentPrice,
           currentTick: poolState.currentTick,
-          balances: {
-            weth: poolState.wethBalance,
-            usdc: poolState.usdcBalance,
-            aero: poolState.aeroBalance,
-            eth: poolState.ethBalance
-          }
+          balances: poolState.balances
         },
-        position: positionData,
+        totals: {
+          totalPortfolioValue,
+          totalLpValue,
+          walletTotalUsd,
+          totalEarnedUsd,
+          totalCollectedUsd,
+          totalUncollectedUsd,
+          totalUncollectedAero,
+          portfolioYieldApr: weightedApr,
+          dailyProjectedUsd: totalDailyProjectedUsd,
+          activePositionsCount: positions.length,
+          totalRebalances: totalRebalancesCount
+        },
+        positions,
+        position: primaryPos,
         earnings: {
-          collectedUsd: collectedFeesUsd,
-          uncollectedUsd: uncollectedFeesUsd,
-          uncollectedWeth,
-          uncollectedUsdc,
-          uncollectedAero,
+          collectedUsd: totalCollectedUsd,
+          uncollectedUsd: totalUncollectedUsd,
+          uncollectedWeth: positions[0]?.uncollectedWeth || 0,
+          uncollectedUsdc: positions[0]?.uncollectedUsdc || 0,
+          uncollectedAero: totalUncollectedAero,
           totalEarnedUsd
         },
-        apr: aprPct,
-        isStaked,
-        outOfRangeSince: botState.outOfRangeSince,
-        remainingDelaySec,
-        rebalancesCount: botState.rebalancesCount,
+        apr: weightedApr,
+        isStaked: primaryPos.isStakedInGauge,
+        outOfRangeSince: primaryPos.outOfRangeSince,
+        remainingDelaySec: primaryPos.remainingDelaySec,
+        rebalancesCount: totalRebalancesCount,
         totalHarvestedAero: botState.totalHarvestedAero,
         autoSnuggle: botState.autoSnuggle !== false,
         compound: botState.compound !== false,
@@ -104,12 +178,17 @@ export function createServer(keeper: KeeperEngine) {
   // Toggle Feature endpoint (Auto-Snuggle, Compound)
   app.post('/api/toggle', (req, res) => {
     try {
-      const { key, value } = req.body;
+      const { tokenId, key, value } = req.body;
       if (key === 'autoSnuggle' || key === 'compound') {
+        if (tokenId) {
+          keeper.getStorage().updatePosition(tokenId, p => {
+            (p as any)[key] = Boolean(value);
+          });
+        }
         keeper.getStorage().updateState(s => {
           (s as any)[key] = Boolean(value);
         });
-        keeper.getStorage().addLog('INFO', `${key === 'autoSnuggle' ? 'Auto-Snuggle' : 'Compound'} fue ${value ? 'activado' : 'desactivado'}.`);
+        keeper.getStorage().addLog('INFO', `${key === 'autoSnuggle' ? 'Auto-Snuggle' : 'Compound'} fue ${value ? 'activado' : 'desactivado'}${tokenId ? ` para #${tokenId}` : ''}.`);
         res.json({ success: true, key, value: Boolean(value) });
       } else {
         res.status(400).json({ error: 'Clave no válida' });
@@ -122,7 +201,8 @@ export function createServer(keeper: KeeperEngine) {
   // Manual Rebalance endpoint
   app.post('/api/rebalance', async (req, res) => {
     try {
-      const ok = await keeper.manualRebalance();
+      const { tokenId } = req.body || {};
+      const ok = await keeper.manualRebalance(tokenId);
       res.json({ success: ok });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -136,23 +216,33 @@ export function createServer(keeper: KeeperEngine) {
       keeper.getStorage().addLog('INFO', `Iniciando creación automática de LP 50/50 (${amountUsdc} USDC)...`);
 
       const result = await keeper.getService().createCentered5050Position(amountUsdc);
-      if (result.success) {
+      if (result.success && result.tokenId) {
         config.dryRun = false; // Switch to live on-chain!
-        keeper.getStorage().updateState(s => {
-          s.activePosition = {
-            tokenId: result.tokenId || 'NEW_LP',
-            tickLower: result.tickLower,
-            tickUpper: result.tickUpper,
-            priceLower: result.priceLower,
-            priceUpper: result.priceUpper,
-            inRange: true
-          };
-          s.outOfRangeSince = null;
+
+        // Stake newly created position in gauge automatically
+        try {
+          await keeper.getService().stakePositionInGauge(result.tokenId);
+        } catch (gaugeErr) {
+          console.error('[API] Gauge auto-stake notice:', gaugeErr);
+        }
+
+        keeper.getStorage().addPosition({
+          tokenId: result.tokenId,
+          tickLower: result.tickLower,
+          tickUpper: result.tickUpper,
+          priceLower: result.priceLower,
+          priceUpper: result.priceUpper,
+          inRange: true,
+          outOfRangeSince: null,
+          rebalancesCount: 0,
+          createdAt: Date.now(),
+          autoSnuggle: true,
+          compound: true
         });
 
         keeper.getStorage().addLog(
           'ACTION',
-          `🚀 Posición 50/50 (#${result.tokenId || 'LP'}) creada en Base! Rango: $${result.priceLower.toFixed(2)} - $${result.priceUpper.toFixed(2)}. Swap Tx: ${result.swapTx?.slice(0, 10)}... | Mint Tx: ${result.mintTx?.slice(0, 10)}...`
+          `🚀 Posición 50/50 (#${result.tokenId}) creada y staked en Gauge! Rango: $${result.priceLower.toFixed(2)} - $${result.priceUpper.toFixed(2)}. Swap Tx: ${result.swapTx?.slice(0, 10)}... | Mint Tx: ${result.mintTx?.slice(0, 10)}...`
         );
 
         res.json(result);
@@ -188,8 +278,9 @@ export function createServer(keeper: KeeperEngine) {
   // Live Claim AERO endpoint
   app.post('/api/claim', async (req, res) => {
     try {
+      const { tokenId: requestedTokenId } = req.body || {};
       const botState = keeper.getStorage().getState();
-      const tokenId = botState.activePosition?.tokenId;
+      const tokenId = requestedTokenId || botState.positions?.[0]?.tokenId || botState.activePosition?.tokenId;
       if (!tokenId) {
         return res.status(400).json({ error: 'No hay posición activa para reclamar' });
       }
@@ -201,14 +292,40 @@ export function createServer(keeper: KeeperEngine) {
         keeper.getStorage().updateState(s => {
           s.totalHarvestedAero = (s.totalHarvestedAero || 0) + (result.claimedAero || 0);
         });
-        keeper.getStorage().addLog('ACTION', `🎉 ¡${(result.claimedAero || 0).toFixed(4)} AERO reclamados a tu wallet! Tx: ${result.txHash?.slice(0, 10)}...`);
+        keeper.getStorage().addLog('ACTION', `🎉 ¡${(result.claimedAero || 0).toFixed(4)} AERO reclamados a tu wallet para #${tokenId}! Tx: ${result.txHash?.slice(0, 10)}...`);
         res.json({ success: true, txHash: result.txHash, claimedAero: result.claimedAero });
       } else {
-        keeper.getStorage().addLog('ERROR', `Error al reclamar AERO: ${result.error}`);
+        keeper.getStorage().addLog('ERROR', `Error al reclamar AERO para #${tokenId}: ${result.error}`);
         res.status(500).json({ success: false, error: result.error });
       }
     } catch (err: any) {
       keeper.getStorage().addLog('ERROR', `Fallo al reclamar AERO: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Withdraw Position endpoint
+  app.post('/api/withdraw', async (req, res) => {
+    try {
+      const { tokenId: requestedTokenId } = req.body || {};
+      const botState = keeper.getStorage().getState();
+      const tokenId = requestedTokenId || botState.positions?.[0]?.tokenId || botState.activePosition?.tokenId;
+      if (!tokenId) {
+        return res.status(400).json({ error: 'No hay posición para retirar' });
+      }
+
+      keeper.getStorage().addLog('ACTION', `Iniciando retiro completo de liquidez para NFT #${tokenId}...`);
+      try {
+        await keeper.getService().withdrawPositionFromGauge(tokenId);
+      } catch (e: any) {
+        console.warn('[Withdraw] Gauge unstake notice:', e.message);
+      }
+
+      keeper.getStorage().removePosition(tokenId);
+      keeper.getStorage().addLog('ACTION', `✅ Posición #${tokenId} retirada del bot.`);
+      res.json({ success: true });
+    } catch (err: any) {
+      keeper.getStorage().addLog('ERROR', `Error al retirar posición: ${err.message}`);
       res.status(500).json({ error: err.message });
     }
   });
