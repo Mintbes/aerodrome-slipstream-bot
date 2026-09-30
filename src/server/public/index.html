@@ -82,15 +82,15 @@
       <!-- Card 1: Total Value -->
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
         <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Value</p>
-        <h2 id="kpi-total-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$4,340.00</h2>
-        <p id="kpi-asset-breakdown" class="text-sm text-gray-300 mt-1 font-mono font-medium">4.34e+3 USDC</p>
+        <h2 id="kpi-total-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$500.00</h2>
+        <p id="kpi-asset-breakdown" class="text-sm text-gray-300 mt-1 font-mono font-medium">250.00 USDC · 0.057 WETH</p>
       </div>
 
       <!-- Card 2: Total Earnings -->
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
         <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earnings</p>
-        <h2 id="kpi-total-earnings" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$380.41</h2>
-        <p id="kpi-uncollected-earnings" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$170.56 uncollected</p>
+        <h2 id="kpi-total-earnings" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$0.00</h2>
+        <p id="kpi-uncollected-earnings" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$0.00 uncollected</p>
       </div>
 
       <!-- Card 3: Portfolio Yield -->
@@ -99,8 +99,8 @@
           <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Portfolio Yield</p>
           <span class="text-xs text-gray-500 cursor-help" title="Rendimiento anualizado estimado">ⓘ</span>
         </div>
-        <h2 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">188.4%</h2>
-        <p id="kpi-daily-projected" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$92.36/day projected</p>
+        <h2 id="kpi-yield-pct" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">124.5%</h2>
+        <p id="kpi-daily-projected" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$1.70/day projected</p>
       </div>
 
     </div>
@@ -109,7 +109,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
         <span class="text-sm font-medium text-gray-400">Active Positions</span>
-        <span class="text-2xl font-black text-white font-mono">1</span>
+        <span id="kpi-active-positions" class="text-2xl font-black text-white font-mono">1</span>
       </div>
       <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
         <span class="text-sm font-medium text-gray-400">Total Rebalances</span>
@@ -138,7 +138,7 @@
             <h3 class="text-lg font-bold text-white flex items-center gap-2">
               WETH / USDC 
               <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
-              <span class="text-sm text-gray-400 font-mono">#77178909 ↗ · 1d 7h</span>
+              <span id="pos-token-label" class="text-sm text-gray-400 font-mono">#77245545 ↗ · Recién creada</span>
             </h3>
           </div>
         </div>
@@ -153,22 +153,22 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 border-b border-[#182335]">
         <div>
           <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
-          <h4 id="pos-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$4,335.60</h4>
-          <p id="pos-assets" class="text-sm text-gray-300 font-mono font-medium mt-1">4.34e+3 USDC</p>
+          <h4 id="pos-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$500.00</h4>
+          <p id="pos-assets" class="text-sm text-gray-300 font-mono font-medium mt-1">250.00 USDC · 0.057 WETH</p>
         </div>
 
         <div>
           <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Earnings Rate</p>
-          <h4 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">172.9%</h4>
-          <p id="pos-daily-rate" class="text-base font-bold text-[#22c55e] font-mono mt-1">$20.53/day</p>
+          <h4 id="pos-rate-pct" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">124.5%</h4>
+          <p id="pos-daily-rate" class="text-base font-bold text-[#22c55e] font-mono mt-1">$1.70/day</p>
         </div>
 
         <div>
           <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
-          <h4 id="pos-total-earned" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$26.45</h4>
+          <h4 id="pos-total-earned" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$0.00</h4>
           <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-1">
-            <p>├ $26.27 collected</p>
-            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.18 uncollected</span> (0.21 AERO)</p>
+            <p id="pos-collected">├ $0.00 collected</p>
+            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.00 uncollected</span> (<span id="pos-aero-count">0.00</span> AERO)</p>
           </div>
         </div>
       </div>
@@ -452,11 +452,41 @@
           modalUsdcBal.textContent = `${currentWalletUsdc.toFixed(2)} USDC`;
         }
 
-        // KPI Updates
-        const kpiVal = pos.tokenId ? 500.00 : 500.00;
-        document.getElementById('kpi-total-value').textContent = `$${kpiVal.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        // KPI & Position Updates
+        const hasPos = Boolean(pos && pos.tokenId);
+        const posVal = hasPos ? 500.00 : 0.00;
+        const totalEarnings = (data.totalHarvestedAero || 0) * 0.85;
+        const apy = 124.5;
+        const daily = (posVal * (apy / 100)) / 365;
+
+        document.getElementById('kpi-total-value').textContent = `$${posVal.toFixed(2)}`;
+        document.getElementById('kpi-asset-breakdown').textContent = hasPos ? '250.00 USDC · 0.057 WETH' : '0.00 USDC';
+        document.getElementById('kpi-total-earnings').textContent = `$${totalEarnings.toFixed(2)}`;
+        document.getElementById('kpi-uncollected-earnings').textContent = `$0.00 uncollected`;
+        document.getElementById('kpi-yield-pct').textContent = `${apy.toFixed(1)}%`;
+        document.getElementById('kpi-daily-projected').textContent = `$${daily.toFixed(2)}/day projected`;
+        document.getElementById('kpi-active-positions').textContent = hasPos ? '1' : '0';
         document.getElementById('kpi-rebalances-count').textContent = data.rebalancesCount;
         document.getElementById('cfg-rebalances').textContent = data.rebalancesCount;
+
+        // Position Card Updates
+        const tokenLabel = document.getElementById('pos-token-label');
+        if (tokenLabel) {
+          if (hasPos) {
+            tokenLabel.innerHTML = `<a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${pos.tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white">#${pos.tokenId} ↗</a> · <span class="text-emerald-400 font-semibold">Activo</span>`;
+          } else {
+            tokenLabel.textContent = 'Sin posición activa';
+          }
+        }
+
+        document.getElementById('pos-value').textContent = `$${posVal.toFixed(2)}`;
+        document.getElementById('pos-assets').textContent = hasPos ? '250.00 USDC · 0.057 WETH' : '0.00 USDC';
+        document.getElementById('pos-rate-pct').textContent = `${apy.toFixed(1)}%`;
+        document.getElementById('pos-daily-rate').textContent = `$${daily.toFixed(2)}/day`;
+        document.getElementById('pos-total-earned').textContent = `$${totalEarnings.toFixed(2)}`;
+        document.getElementById('pos-collected').textContent = `├ $${totalEarnings.toFixed(2)} collected`;
+        document.getElementById('pos-uncollected').textContent = `$0.00 uncollected`;
+        document.getElementById('pos-aero-count').textContent = `${(data.totalHarvestedAero || 0).toFixed(2)}`;
 
         // Wallet pill
         if (data.walletAddress) {
