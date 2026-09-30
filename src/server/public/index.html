@@ -12,9 +12,9 @@
       theme: {
         extend: {
           colors: {
-            snuggleBg: '#090d14',
-            snuggleCard: '#0f1726',
-            snuggleBorder: '#1c2638',
+            snuggleBg: '#090d15',
+            snuggleCard: '#162238',
+            snuggleBorder: '#2b3d5b',
             snuggleGreen: '#22c55e',
             snuggleBlue: '#1e40af'
           }
@@ -24,7 +24,7 @@
   </script>
   <style>
     body {
-      background-color: #080b11;
+      background-color: #090d15;
       color: #f3f4f6;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
@@ -36,7 +36,7 @@
 <body class="min-h-screen antialiased flex flex-col justify-between">
 
   <!-- Top Navigation Bar -->
-  <nav class="border-b border-[#182234] bg-[#0c121e]/80 backdrop-blur px-6 py-4 sticky top-0 z-40">
+  <nav class="border-b border-[#212f45] bg-[#0d1422]/90 backdrop-blur px-6 py-4 sticky top-0 z-40">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow">
@@ -49,12 +49,12 @@
       </div>
 
       <div class="flex items-center space-x-3">
-        <a id="wallet-link" href="https://basescan.org/address/0xE96dBfE34499ae5d53B85be8DCc16Dd388C4565d" target="_blank" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#141e30] border border-[#233148] text-xs font-mono text-gray-300 hover:border-emerald-500/50 transition">
+        <a id="wallet-link" href="https://basescan.org/address/0xE96dBfE34499ae5d53B85be8DCc16Dd388C4565d" target="_blank" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#162238] border border-[#2b3d5b] text-xs font-mono text-gray-300 hover:border-emerald-500/50 transition">
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           <span id="wallet-addr-short">0xE96d...565d</span>
           <span id="wallet-bal-summary" class="text-emerald-400 font-bold ml-1">0.00 USDC</span>
         </a>
-        <button onclick="toggleSettingsModal()" class="px-3 py-1.5 rounded-lg border border-[#233148] text-xs font-semibold text-gray-300 hover:text-white hover:bg-[#162032] transition">
+        <button onclick="toggleSettingsModal()" class="px-3 py-1.5 rounded-lg border border-[#2b3d5b] text-xs font-semibold text-gray-300 hover:text-white hover:bg-[#1c2b45] transition">
           ⚙️ Ajustes Bot
         </button>
         <button onclick="openCreateModal()" class="px-4 py-1.5 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-black font-extrabold text-xs shadow-md transition active:scale-95 flex items-center gap-1.5">
@@ -87,21 +87,21 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       
       <!-- Card 1: Total Value -->
-      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
+      <div class="bg-[#162238] border border-[#2b3d5b] rounded-xl p-5 shadow-sm">
         <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Value</p>
         <h2 id="kpi-total-value" class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$0.00</h2>
         <p id="kpi-asset-breakdown" class="text-sm text-gray-300 mt-1 font-mono font-medium">LP: $0.00 · Wallet: $0.00</p>
       </div>
 
       <!-- Card 2: Total Earnings -->
-      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
+      <div class="bg-[#162238] border border-[#2b3d5b] rounded-xl p-5 shadow-sm">
         <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earnings</p>
         <h2 id="kpi-total-earnings" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$0.00</h2>
         <p id="kpi-uncollected-earnings" class="text-sm text-[#22c55e] mt-1 font-mono font-medium">$0.00 uncollected</p>
       </div>
 
       <!-- Card 3: Portfolio Yield -->
-      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-5 shadow-sm">
+      <div class="bg-[#162238] border border-[#2b3d5b] rounded-xl p-5 shadow-sm">
         <div class="flex items-center gap-1">
           <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Portfolio Yield</p>
           <span class="text-xs text-gray-500 cursor-help" title="Rendimiento medio ponderado anualizado de todas las posiciones">ⓘ</span>
@@ -114,15 +114,15 @@
 
     <!-- Second Info Row: Active Positions, Total Rebalances, Contract -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
+      <div class="bg-[#162238] border border-[#2b3d5b] rounded-xl p-4 flex items-center justify-between">
         <span class="text-sm font-medium text-gray-400">Active Positions</span>
         <span id="kpi-active-positions" class="text-2xl font-black text-white font-mono">1</span>
       </div>
-      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
+      <div class="bg-[#162238] border border-[#2b3d5b] rounded-xl p-4 flex items-center justify-between">
         <span class="text-sm font-medium text-gray-400">Total Rebalances</span>
         <span id="kpi-rebalances-count" class="text-2xl font-black text-white font-mono">0</span>
       </div>
-      <div class="bg-[#0e1626] border border-[#1a2538] rounded-xl p-4 flex items-center justify-between">
+      <div class="bg-[#162238] border border-[#2b3d5b] rounded-xl p-4 flex items-center justify-between">
         <span class="text-sm font-medium text-gray-400">Contract</span>
         <a href="https://basescan.org/address/0xb2cc224c1c9feE385f8ad6a55b4d94E92359DC59" target="_blank" class="text-sm font-bold text-[#22c55e] hover:underline flex items-center gap-1">
           View on Basescan ↗
@@ -134,10 +134,10 @@
     <div class="flex items-center justify-between text-xs text-gray-400 pt-1">
       <div class="flex items-center space-x-2">
         <span class="font-semibold text-gray-300">Positions</span>
-        <span id="badge-positions-count" class="px-2 py-0.5 rounded-full bg-[#162032] border border-[#233148] text-xs font-mono text-emerald-400 font-bold">1 Active</span>
+        <span id="badge-positions-count" class="px-2 py-0.5 rounded-full bg-[#182740] border border-[#2b3d5b] text-xs font-mono text-emerald-400 font-bold">1 Active</span>
       </div>
       <div class="flex items-center space-x-2">
-        <div class="bg-[#111a2c] border border-[#1e2a3e] rounded-lg p-0.5 flex items-center">
+        <div class="bg-[#10192a] border border-[#253650] rounded-lg p-0.5 flex items-center">
           <button id="btn-view-full" onclick="setViewMode('full')" class="px-2.5 py-1 rounded-md text-xs font-extrabold bg-[#22c55e] text-black cursor-pointer shadow transition">Full</button>
           <button id="btn-view-compact" onclick="setViewMode('compact')" class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-400 hover:text-white cursor-pointer transition">Compact</button>
         </div>
@@ -150,7 +150,7 @@
     </div>
 
     <!-- Live Activity Logs (Collapsible Engine Audit) -->
-    <div class="bg-[#0e1626] border border-[#1a2538] rounded-2xl p-5 shadow-sm">
+    <div class="bg-[#162238] border border-[#2b3d5b] rounded-2xl p-5 shadow-sm">
       <div class="flex items-center justify-between mb-3">
         <h4 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -167,9 +167,9 @@
   </main>
 
   <!-- Settings Modal -->
-  <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-[#0f1726] border border-[#1e2a3e] rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-[#1c283c] pb-3">
+  <div id="settings-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#141f33] border border-[#2b3d5b] rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#212f45] pb-3">
         <h3 class="text-base font-bold text-white">⚙️ Ajustes de la Estrategia</h3>
         <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
       </div>
@@ -177,17 +177,17 @@
       <div class="space-y-4 text-xs">
         <div>
           <label class="block text-gray-400 mb-1 font-semibold">Ancho de Rango (%):</label>
-          <input id="input-range-width" type="number" step="0.1" value="4.1" class="w-full bg-[#141d2d] border border-[#233148] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
+          <input id="input-range-width" type="number" step="0.1" value="4.1" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
           <p class="text-[10px] text-gray-500 mt-1">4.1% es el ancho óptimo para WETH/USDC (CL100).</p>
         </div>
 
         <div>
           <label class="block text-gray-400 mb-1 font-semibold">Temporizador Anti-Latigazo (Delay en segundos):</label>
-          <input id="input-delay-sec" type="number" value="3600" class="w-full bg-[#141d2d] border border-[#233148] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
+          <input id="input-delay-sec" type="number" value="3600" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500">
           <p class="text-[10px] text-gray-500 mt-1">3600 seg = 1 hora de espera antes de rebalancear.</p>
         </div>
 
-        <div class="flex items-center justify-between p-3 rounded-xl bg-[#141d2d] border border-[#233148]">
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#1a2842] border border-[#2f4363]">
           <div>
             <p class="font-semibold text-white">Modo Simulación (Dry Run)</p>
             <p class="text-[10px] text-gray-400">Si está activo, no mueve fondos reales.</p>
@@ -196,8 +196,8 @@
         </div>
       </div>
 
-      <div class="flex justify-end space-x-3 pt-3 border-t border-[#1c283c]">
-        <button onclick="toggleSettingsModal()" class="px-4 py-2 rounded-lg bg-[#162133] hover:bg-[#1e2c44] text-xs font-semibold text-gray-300">
+      <div class="flex justify-end space-x-3 pt-3 border-t border-[#212f45]">
+        <button onclick="toggleSettingsModal()" class="px-4 py-2 rounded-lg bg-[#1c2b45] hover:bg-[#253756] text-xs font-semibold text-gray-300">
           Cancelar
         </button>
         <button onclick="saveSettings()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow">
@@ -209,8 +209,8 @@
 
   <!-- Modal: Crear Posición 50/50 Automática -->
   <div id="create-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-[#0f1726] border border-[#1e2a3e] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-[#1c283c] pb-3">
+    <div class="bg-[#141f33] border border-[#2b3d5b] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#212f45] pb-3">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <span>🚀</span> Menú Automático LP 50/50
         </h3>
@@ -219,7 +219,7 @@
 
       <div class="space-y-4">
         <!-- Wallet info card -->
-        <div class="p-3.5 rounded-xl bg-[#141d2d] border border-[#233148] flex items-center justify-between">
+        <div class="p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363] flex items-center justify-between">
           <div>
             <p class="text-xs text-gray-400">Wallet Satélite (Base):</p>
             <p class="text-xs font-mono font-bold text-emerald-400">0xE96d...565d</p>
@@ -236,18 +236,18 @@
             Cantidad de USDC a depositar:
           </label>
           <div class="relative">
-            <input id="input-create-amount" type="number" step="1" value="500" oninput="updateCreatePreview()" class="w-full bg-[#141d2d] border border-[#233148] rounded-xl px-4 py-3 text-lg text-white font-mono font-bold focus:outline-none focus:border-emerald-500">
+            <input id="input-create-amount" type="number" step="1" value="500" oninput="updateCreatePreview()" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-3 text-lg text-white font-mono font-bold focus:outline-none focus:border-emerald-500">
             <span class="absolute right-4 top-3.5 text-xs font-bold text-gray-400">USDC</span>
           </div>
           <div class="flex gap-2 mt-2">
-            <button onclick="setCreateAmountPercent(0.25)" class="px-3 py-1 bg-[#182335] hover:bg-[#22314a] rounded-lg text-xs font-mono text-gray-300">25%</button>
-            <button onclick="setCreateAmountPercent(0.50)" class="px-3 py-1 bg-[#182335] hover:bg-[#22314a] rounded-lg text-xs font-mono text-gray-300">50%</button>
-            <button onclick="setCreateAmountPercent(1.00)" class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 rounded-lg text-xs font-mono font-bold">100% (Todo)</button>
+            <button onclick="setCreateAmountPercent(0.25)" class="px-3 py-1 bg-[#1a2842] hover:bg-[#253756] border border-[#2f4363] rounded-lg text-xs font-mono text-gray-300">25%</button>
+            <button onclick="setCreateAmountPercent(0.50)" class="px-3 py-1 bg-[#1a2842] hover:bg-[#253756] border border-[#2f4363] rounded-lg text-xs font-mono text-gray-300">50%</button>
+            <button onclick="setCreateAmountPercent(1.00)" class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 rounded-lg text-xs font-mono font-bold">100% (Todo)</button>
           </div>
         </div>
 
         <!-- Strategy Preview Box -->
-        <div class="p-4 rounded-xl bg-[#0b121e] border border-[#1b2638] space-y-2 text-xs">
+        <div class="p-4 rounded-xl bg-[#111a2a] border border-[#253650] space-y-2 text-xs">
           <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Plan de Ejecución Automatizado en Base:</p>
           <div class="flex items-center justify-between text-gray-300">
             <span>🔄 Swap a WETH (50%):</span>
@@ -276,8 +276,8 @@
         </div>
       </div>
 
-      <div class="flex justify-end space-x-3 pt-3 border-t border-[#1c283c]">
-        <button onclick="closeCreateModal()" id="btn-cancel-create" class="px-4 py-2.5 rounded-xl bg-[#162133] hover:bg-[#1e2c44] text-xs font-semibold text-gray-300">
+      <div class="flex justify-end space-x-3 pt-3 border-t border-[#212f45]">
+        <button onclick="closeCreateModal()" id="btn-cancel-create" class="px-4 py-2.5 rounded-xl bg-[#1c2b45] hover:bg-[#253756] text-xs font-semibold text-gray-300">
           Cancelar
         </button>
         <button onclick="executeCreate5050()" id="btn-submit-create" class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow-lg transition active:scale-98 flex items-center gap-1.5">
@@ -288,7 +288,7 @@
   </div>
 
   <!-- Footer -->
-  <footer class="border-t border-[#182234] py-4 text-center text-xs text-gray-500">
+  <footer class="border-t border-[#212f45] py-4 text-center text-xs text-gray-500">
     <p>Personal DeFi Liquidity Keeper · Aerodrome Slipstream CL100 · 0% Performance Fees</p>
   </footer>
 
@@ -362,7 +362,7 @@
 
       if (!positions || positions.length === 0 || !positions[0] || !positions[0].tokenId) {
         container.innerHTML = `
-          <div class="bg-[#0e1626] border border-[#1a2538] rounded-2xl p-10 text-center space-y-4 shadow-lg">
+          <div class="bg-[#162238] border border-[#2b3d5b] rounded-2xl p-10 text-center space-y-4 shadow-lg">
             <span class="text-5xl">🏊</span>
             <h3 class="text-xl font-bold text-white">No tienes posiciones activas</h3>
             <p class="text-sm text-gray-400 max-w-md mx-auto">Crea tu primera posición de liquidez concentrada en Aerodrome Slipstream con auto-rebalanceo Zero-Swap.</p>
@@ -415,7 +415,7 @@
             </div>
           `;
           bannerHtml = `
-            <div class="p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#182335]">
+            <div class="p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#212f45]">
               Optimally positioned (snuggled) ✓
             </div>
           `;
@@ -429,7 +429,7 @@
             </div>
           `;
           bannerHtml = `
-            <div class="p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#182335]">
+            <div class="p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#212f45]">
               Auto-snuggle in ~${min}m ${sec}s
             </div>
           `;
@@ -445,14 +445,14 @@
           : (currentViewMode === 'full');
 
         return `
-          <div id="card-pos-${tokenId}" class="bg-[#0e1626] border border-[#1a2538] rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
+          <div id="card-pos-${tokenId}" class="bg-[#162238] border border-[#2b3d5b] rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
             
             <!-- Position Header (Exact Snuggle Style) -->
-            <div class="p-5 border-b border-[#182335] flex flex-wrap items-center justify-between gap-4">
+            <div class="p-5 border-b border-[#212f45] flex flex-wrap items-center justify-between gap-4">
               <div class="flex items-center space-x-3">
                 <div class="flex -space-x-2 overflow-hidden">
-                  <span class="inline-block w-8 h-8 rounded-full bg-blue-500 border-2 border-[#0e1626] text-center text-sm leading-7">🔷</span>
-                  <span class="inline-block w-8 h-8 rounded-full bg-emerald-500 border-2 border-[#0e1626] text-center text-sm leading-7">💵</span>
+                  <span class="inline-block w-8 h-8 rounded-full bg-blue-500 border-2 border-[#162238] text-center text-sm leading-7">🔷</span>
+                  <span class="inline-block w-8 h-8 rounded-full bg-emerald-500 border-2 border-[#162238] text-center text-sm leading-7">💵</span>
                 </div>
                 <div>
                   <h3 class="text-lg font-bold text-white flex flex-wrap items-center gap-2">
@@ -469,7 +469,7 @@
             </div>
 
             <!-- Position Metrics 3-Column Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 ${isExpanded ? 'border-b border-[#182335]' : ''}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 ${isExpanded ? 'border-b border-[#212f45]' : ''}">
               <div>
                 <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
                 <h4 class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$${lpVal.toFixed(2)}</h4>
@@ -494,7 +494,7 @@
 
             ${isExpanded ? `
               <!-- Price Range Graphical Slider -->
-              <div class="p-6 border-b border-[#182335] space-y-4">
+              <div class="p-6 border-b border-[#212f45] space-y-4">
                 <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Price Range (USDC per WETH)</p>
                 
                 <div class="relative pt-7 pb-6">
@@ -506,12 +506,12 @@
                         $${Math.round(price)}
                       </div>
                       <div class="absolute top-7 left-0 -translate-x-1/2 w-[2px] h-7 md:h-8 bg-[#22c55e]"></div>
-                      <div class="absolute top-[42px] md:top-[44px] left-0 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#22c55e] border-2 border-[#0b1322] shadow"></div>
+                      <div class="absolute top-[42px] md:top-[44px] left-0 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#22c55e] border-2 border-[#162238] shadow"></div>
                     </div>
                   </div>
 
                   <!-- Main Track Bar -->
-                  <div class="h-7 md:h-8 w-full bg-[#131b29] rounded-lg relative overflow-hidden flex items-center shadow-inner border border-[#1a2538]">
+                  <div class="h-7 md:h-8 w-full bg-[#0d1522] rounded-lg relative overflow-hidden flex items-center shadow-inner border border-[#23334d]">
                     <div class="absolute top-0 bottom-0 ${bandColorClass} border-l-2 border-r-2 transition-all duration-500" style="left: ${lowerPct}%; width: ${bandWidth}%;"></div>
                   </div>
 
@@ -525,8 +525,8 @@
               </div>
 
               <!-- Configuration & Parameters Row -->
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#182335] bg-[#0c1322]">
-                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#212f45] bg-[#111a2a]">
+                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
                   <span class="text-sm font-medium text-gray-400">Range</span>
                   <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
                     <span>4.1%</span> 
@@ -534,7 +534,7 @@
                   </span>
                 </div>
 
-                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
                   <span class="text-sm font-medium text-gray-400">Delay</span>
                   <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
                     <span>1h</span>
@@ -542,15 +542,15 @@
                   </span>
                 </div>
 
-                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#111a2c] border border-[#1d293d]">
+                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
                   <span class="text-sm font-medium text-gray-400">Rebalances</span>
                   <span class="text-base md:text-lg font-black text-white font-mono">${pos.rebalancesCount || 0}</span>
                 </div>
               </div>
 
               <!-- Auto-Snuggle & Compound Toggles Row -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#182335]">
-                <div onclick="togglePositionFeature('${tokenId}', 'autoSnuggle')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#212f45]">
+                <div onclick="togglePositionFeature('${tokenId}', 'autoSnuggle')" class="flex items-center justify-between p-4 rounded-xl bg-[#1a2842] border border-[#2f4363] hover:border-[#3d557c] transition cursor-pointer select-none">
                   <div>
                     <p class="text-sm font-bold text-white">Auto-Snuggle</p>
                     <p class="text-xs font-bold ${pos.autoSnuggle !== false ? 'text-[#22c55e]' : 'text-gray-400'}">${pos.autoSnuggle !== false ? 'Enabled' : 'Disabled'}</p>
@@ -560,7 +560,7 @@
                   </div>
                 </div>
 
-                <div onclick="togglePositionFeature('${tokenId}', 'compound')" class="flex items-center justify-between p-4 rounded-xl bg-[#101828] border border-[#1c283c] hover:border-[#283850] transition cursor-pointer select-none">
+                <div onclick="togglePositionFeature('${tokenId}', 'compound')" class="flex items-center justify-between p-4 rounded-xl bg-[#1a2842] border border-[#2f4363] hover:border-[#3d557c] transition cursor-pointer select-none">
                   <div>
                     <p class="text-sm font-bold text-white flex items-center gap-1">
                       Compound <span class="text-xs text-gray-500 cursor-help" title="Reinvierte comisiones y AERO automáticamente">ⓘ</span>
@@ -589,17 +589,17 @@
 
               <!-- Secondary Buttons Row (Share & Withdraw) -->
               <div class="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
+                <button onclick="sharePosition()" class="w-full py-2.5 rounded-xl bg-[#18263e] hover:bg-[#20314f] border border-[#2d4060] text-gray-200 font-bold text-xs md:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer">
                   <span>↑</span> Share
                 </button>
-                <button onclick="withdrawPositionToken('${tokenId}')" class="w-full py-2.5 rounded-xl bg-[#141d2e] hover:bg-[#1c283f] text-gray-200 font-bold text-xs md:text-sm transition cursor-pointer">
+                <button onclick="withdrawPositionToken('${tokenId}')" class="w-full py-2.5 rounded-xl bg-[#18263e] hover:bg-[#20314f] border border-[#2d4060] text-gray-200 font-bold text-xs md:text-sm transition cursor-pointer">
                   Withdraw
                 </button>
               </div>
             ` : ''}
 
             <!-- Bottom Collapse / Expand Bar (Snuggle Style) -->
-            <div class="border-t border-[#182335]/60 bg-[#0a111e] hover:bg-[#111c2e] transition cursor-pointer py-2.5 text-center select-none" onclick="toggleCardExpand('${tokenId}')">
+            <div class="border-t border-[#212f45] bg-[#111a2a] hover:bg-[#18253d] transition cursor-pointer py-2.5 text-center select-none" onclick="toggleCardExpand('${tokenId}')">
               <span class="text-xs font-bold text-gray-400 hover:text-gray-200 transition inline-flex items-center gap-1.5">
                 <span>${isExpanded ? '▲' : '▼'}</span>
                 <span>${isExpanded ? 'Collapse' : 'Expand'}</span>
