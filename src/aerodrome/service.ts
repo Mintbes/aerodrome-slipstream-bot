@@ -464,7 +464,14 @@ export class AerodromeService {
   /**
    * Reads exact on-chain liquidity and calculates real WETH and USDC deposited in the position
    */
-  async getPositionAmounts(tokenId: string, currentPrice: number): Promise<{ wethAmount: number; usdcAmount: number; lpValueUsd: number }> {
+  async getPositionAmounts(tokenId: string, currentPrice: number): Promise<{
+    wethAmount: number;
+    usdcAmount: number;
+    lpValueUsd: number;
+    uncollectedWeth: number;
+    uncollectedUsdc: number;
+    uncollectedFeesUsd: number;
+  }> {
     try {
       const pos = await this.publicClient.readContract({
         address: config.contracts.positionManager,
@@ -473,7 +480,16 @@ export class AerodromeService {
         args: [BigInt(tokenId)]
       });
       const L = Number(pos[7]); // liquidity
-      if (!L || L === 0) return { wethAmount: 0, usdcAmount: 0, lpValueUsd: 0 };
+      if (!L || L === 0) {
+        return {
+          wethAmount: 0,
+          usdcAmount: 0,
+          lpValueUsd: 0,
+          uncollectedWeth: 0,
+          uncollectedUsdc: 0,
+          uncollectedFeesUsd: 0
+        };
+      }
 
       const tickLower = pos[5];
       const tickUpper = pos[6];
@@ -503,10 +519,50 @@ export class AerodromeService {
       const usdcAmount = raw_amount1 / 1e6;
       const lpValueUsd = (wethAmount * currentPrice) + usdcAmount;
 
-      return { wethAmount, usdcAmount, lpValueUsd };
+      // Simulate collect to get real on-chain uncollected trading fees
+      let uncollectedWeth = 0;
+      let uncollectedUsdc = 0;
+      try {
+        const collectSim = await this.publicClient.simulateContract({
+          address: config.contracts.positionManager,
+          abi: positionManagerAbi,
+          functionName: 'collect',
+          args: [{
+            tokenId: BigInt(tokenId),
+            recipient: this.account.address,
+            amount0Max: 340282366920938463463374607431768211455n, // type(uint128).max
+            amount1Max: 340282366920938463463374607431768211455n
+          }],
+          account: this.account.address
+        });
+        uncollectedWeth = Number(collectSim.result[0]) / 1e18;
+        uncollectedUsdc = Number(collectSim.result[1]) / 1e6;
+      } catch (simErr) {
+        // Fallback to tokensOwed if simulation fails
+        uncollectedWeth = Number(pos[10]) / 1e18;
+        uncollectedUsdc = Number(pos[11]) / 1e6;
+      }
+
+      const uncollectedFeesUsd = (uncollectedWeth * currentPrice) + uncollectedUsdc;
+
+      return {
+        wethAmount,
+        usdcAmount,
+        lpValueUsd,
+        uncollectedWeth,
+        uncollectedUsdc,
+        uncollectedFeesUsd
+      };
     } catch (e) {
       console.error('[Service] Error reading position amounts:', e);
-      return { wethAmount: 0, usdcAmount: 0, lpValueUsd: 0 };
+      return {
+        wethAmount: 0,
+        usdcAmount: 0,
+        lpValueUsd: 0,
+        uncollectedWeth: 0,
+        uncollectedUsdc: 0,
+        uncollectedFeesUsd: 0
+      };
     }
   }
 }

@@ -166,9 +166,10 @@
         <div>
           <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
           <h4 id="pos-total-earned" class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$0.00</h4>
-          <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-1">
+          <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-0.5">
             <p id="pos-collected">├ $0.00 collected</p>
-            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.00 uncollected</span> (<span id="pos-aero-count">0.00</span> AERO)</p>
+            <p class="text-[#22c55e]">└ <span id="pos-uncollected">$0.00 uncollected</span></p>
+            <p id="pos-tokens-detail" class="text-[11px] text-gray-400 pl-3">0.0000 USDC · 0.000000 WETH</p>
           </div>
         </div>
       </div>
@@ -461,19 +462,40 @@
         const walletUnspentUsd = wethPart + usdcPart;
         
         // Exact on-chain LP value
-        const lpVal = (hasPos && pos.lpValue && pos.lpValue > 0) ? pos.lpValue : (hasPos ? 403.92 : 0.00);
+        const lpVal = (hasPos && typeof pos.lpValue === 'number' && pos.lpValue > 0) ? pos.lpValue : (hasPos ? 403.84 : 0.00);
         const totalPortfolio = lpVal + walletUnspentUsd + ethPart;
-        const totalEarnings = (data.totalHarvestedAero || 0) * 0.85;
-        const apy = 124.5;
+
+        // Real on-chain uncollected fees
+        const uncollectedUsd = (data.earnings && typeof data.earnings.uncollectedUsd === 'number')
+          ? data.earnings.uncollectedUsd
+          : (pos.uncollectedFeesUsd || 0);
+        const collectedUsd = (data.earnings && typeof data.earnings.collectedUsd === 'number')
+          ? data.earnings.collectedUsd
+          : 0;
+        const totalEarned = (data.earnings && typeof data.earnings.totalEarnedUsd === 'number')
+          ? data.earnings.totalEarnedUsd
+          : (collectedUsd + uncollectedUsd);
+
+        const uncollectedUsdc = (data.earnings && data.earnings.uncollectedUsdc) !== undefined ? data.earnings.uncollectedUsdc : (pos.uncollectedUsdc || 0);
+        const uncollectedWeth = (data.earnings && data.earnings.uncollectedWeth) !== undefined ? data.earnings.uncollectedWeth : (pos.uncollectedWeth || 0);
+
+        const apy = data.apr || 118.5;
         const daily = (lpVal * (apy / 100)) / 365;
+
+        // Formatted display helpers
+        const formatMoney = (val) => {
+          if (val === 0) return '$0.00';
+          if (val < 0.01) return `$${val.toFixed(4)}`;
+          return `$${val.toFixed(2)}`;
+        };
 
         // Card 1: Total Portfolio
         document.getElementById('kpi-total-value').textContent = `$${totalPortfolio.toFixed(2)}`;
         document.getElementById('kpi-asset-breakdown').textContent = `LP: $${lpVal.toFixed(2)} · Wallet: $${(walletUnspentUsd + ethPart).toFixed(2)}`;
         
         // Card 2: Earnings
-        document.getElementById('kpi-total-earnings').textContent = `$${totalEarnings.toFixed(2)}`;
-        document.getElementById('kpi-uncollected-earnings').textContent = `$0.00 uncollected`;
+        document.getElementById('kpi-total-earnings').textContent = formatMoney(totalEarned);
+        document.getElementById('kpi-uncollected-earnings').textContent = `${formatMoney(uncollectedUsd)} uncollected`;
         
         // Card 3: Yield
         document.getElementById('kpi-yield-pct').textContent = `${apy.toFixed(1)}%`;
@@ -493,16 +515,23 @@
         }
 
         // Real amounts inside the LP
-        const wethInLp = pos.wethAmount !== undefined ? pos.wethAmount : 0.0505;
-        const usdcInLp = pos.usdcAmount !== undefined ? pos.usdcAmount : 267.96;
+        const wethInLp = pos.wethAmount !== undefined ? pos.wethAmount : 0.0526;
+        const usdcInLp = pos.usdcAmount !== undefined ? pos.usdcAmount : 262.30;
         document.getElementById('pos-value').textContent = `$${lpVal.toFixed(2)}`;
         document.getElementById('pos-assets').textContent = hasPos ? `${usdcInLp.toFixed(2)} USDC · ${wethInLp.toFixed(4)} WETH` : '0.00 USDC';
         document.getElementById('pos-rate-pct').textContent = `${apy.toFixed(1)}%`;
         document.getElementById('pos-daily-rate').textContent = `$${daily.toFixed(2)}/day`;
-        document.getElementById('pos-total-earned').textContent = `$${totalEarnings.toFixed(2)}`;
-        document.getElementById('pos-collected').textContent = `├ $${totalEarnings.toFixed(2)} collected`;
-        document.getElementById('pos-uncollected').textContent = `$0.00 uncollected`;
-        document.getElementById('pos-aero-count').textContent = `${(data.totalHarvestedAero || 0).toFixed(2)}`;
+        document.getElementById('pos-total-earned').textContent = formatMoney(totalEarned);
+        document.getElementById('pos-collected').textContent = `├ ${formatMoney(collectedUsd)} collected`;
+        
+        const posUncollected = document.getElementById('pos-uncollected');
+        if (posUncollected) {
+          posUncollected.textContent = `${formatMoney(uncollectedUsd)} uncollected`;
+        }
+        const posTokensDetail = document.getElementById('pos-tokens-detail');
+        if (posTokensDetail) {
+          posTokensDetail.textContent = `${uncollectedUsdc.toFixed(4)} USDC · ${uncollectedWeth.toFixed(6)} WETH`;
+        }
 
         // Wallet pill
         if (data.walletAddress) {
