@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
+export type CompoundMode = 'usdc' | 'reinvest';
+
 export interface PositionItem {
   tokenId: string;
   tickLower: number;
@@ -13,6 +15,8 @@ export interface PositionItem {
   createdAt: number;
   autoSnuggle?: boolean;
   compound?: boolean;
+  compoundMode?: CompoundMode;
+  compoundThresholdUsd?: number;
 }
 
 export interface BotState {
@@ -30,6 +34,8 @@ export interface BotState {
   totalHarvestedAero: number;
   autoSnuggle: boolean;
   compound: boolean;
+  compoundMode?: CompoundMode;
+  compoundThresholdUsd?: number;
   rebalanceHistory: Array<{
     timestamp: number;
     tokenId?: string;
@@ -63,6 +69,8 @@ const DEFAULT_STATE: BotState = {
   totalHarvestedAero: 0,
   autoSnuggle: true,
   compound: true,
+  compoundMode: 'usdc',
+  compoundThresholdUsd: 25,
   rebalanceHistory: [],
   logs: []
 };
@@ -96,6 +104,14 @@ export class StorageService {
             }];
           } else {
             parsed.positions = [];
+          }
+        }
+        if (parsed.compoundMode === undefined) parsed.compoundMode = 'usdc';
+        if (parsed.compoundThresholdUsd === undefined) parsed.compoundThresholdUsd = 25;
+        if (Array.isArray(parsed.positions)) {
+          for (const p of parsed.positions) {
+            if (p.compoundMode === undefined) p.compoundMode = parsed.compoundMode;
+            if (p.compoundThresholdUsd === undefined) p.compoundThresholdUsd = parsed.compoundThresholdUsd;
           }
         }
         return parsed;

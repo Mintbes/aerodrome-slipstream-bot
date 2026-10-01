@@ -144,6 +144,46 @@ export class KeeperEngine {
             }
           }
         }
+
+        // Check Auto-Compound / Auto-Harvest condition
+        const isCompoundEnabled = pos.compound !== false && botState.compound !== false;
+        if (isCompoundEnabled && pos.tokenId) {
+          const mode = pos.compoundMode || botState.compoundMode || 'usdc';
+          const threshold = pos.compoundThresholdUsd || botState.compoundThresholdUsd || 25;
+
+          try {
+            const amounts = await this.service.getPositionAmounts(pos.tokenId, state.currentPrice);
+            const pendingUsd = amounts.uncollectedFeesUsd || 0;
+
+            if (pendingUsd >= threshold) {
+              this.storage.addLog(
+                'ACTION',
+                `🎯 Umbral de cosecha alcanzado para #${pos.tokenId}: $${pendingUsd.toFixed(2)} acumulados >= umbral $${threshold}. Ejecutando Auto-Compound (${mode === 'usdc' ? '💵 Cosecha a USDC' : '🔄 Reinversión LP'})...`
+              );
+              const compRes = await this.service.executeCompound(pos.tokenId, mode);
+              if (compRes.success) {
+                this.storage.updateState(s => {
+                  s.totalHarvestedAero = (s.totalHarvestedAero || 0) + (compRes.claimedAero || 0);
+                });
+                if (mode === 'usdc') {
+                  this.storage.addLog(
+                    'ACTION',
+                    `💵 ¡Auto-Cosecha exitosa para #${pos.tokenId}! ${(compRes.claimedAero || 0).toFixed(4)} AERO cambiados a $${(compRes.usdcReceived || 0).toFixed(2)} USDC en tu wallet! Tx: ${compRes.txHash?.slice(0, 10)}...`
+                  );
+                } else {
+                  this.storage.addLog(
+                    'ACTION',
+                    `🔄 ¡Auto-Compound exitoso para #${pos.tokenId}! ${(compRes.claimedAero || 0).toFixed(4)} AERO reinvertidos en la posición LP. Tx: ${compRes.txHash?.slice(0, 10)}...`
+                  );
+                }
+              } else {
+                this.storage.addLog('ERROR', `Error en auto-compound para #${pos.tokenId}: ${compRes.error}`);
+              }
+            }
+          } catch (compErr: any) {
+            console.error(`[Keeper] Error checking compound threshold for #${pos.tokenId}:`, compErr);
+          }
+        }
       }
     } catch (err: any) {
       const msg = err.shortMessage || err.message || String(err);
@@ -206,5 +246,50 @@ export class KeeperEngine {
       this.storage.addLog('ERROR', `Manual rebalance failed: ${res.error}`);
       return false;
     }
+  }
+
+  /**
+   * Manual Compound / Harvest triggered from Dashboard
+   */
+  public async manualCompound(targetTokenId?: string, overrideMode?: 'usdc' | 'reinvest'): Promise<{
+    success: boolean;
+    mode: 'usdc' | 'reinvest';
+    claimedAero?: number;
+    usdcReceived?: number;
+    txHash?: string;
+    error?: string;
+  }> {
+    const botState = this.storage.getState();
+    const pos = (targetTokenId && botState.positions?.length)
+      ? (botState.positions.find(p => p.tokenId === targetTokenId) || botState.positions[0])
+      : (botState.positions?.[0] || botState.activePosition);
+
+    if (!pos || !pos.tokenId) {
+      return { success: false, mode: 'usdc', error: 'No hay posición activa para compound' };
+    }
+
+    const mode = overrideMode || pos.compoundMode || botState.compoundMode || 'usdc';
+    this.storage.addLog('ACTION', `Iniciando compound manual (${mode === 'usdc' ? '💵 Cosecha a USDC' : '🔄 Reinversión LP'}) para #${pos.tokenId}...`);
+
+    const res = await this.service.executeCompound(pos.tokenId, mode);
+    if (res.success) {
+      this.storage.updateState(s => {
+        s.totalHarvestedAero = (s.totalHarvestedAero || 0) + (res.claimedAero || 0);
+      });
+      if (mode === 'usdc') {
+        this.storage.addLog(
+          'ACTION',
+          `💵 ¡Cosecha manual exitosa para #${pos.tokenId}! ${(res.claimedAero || 0).toFixed(4)} AERO cambiados a $${(res.usdcReceived || 0).toFixed(2)} USDC en tu wallet! Tx: ${res.txHash?.slice(0, 10)}...`
+        );
+      } else {
+        this.storage.addLog(
+          'ACTION',
+          `🔄 ¡Compound manual exitoso para #${pos.tokenId}! ${(res.claimedAero || 0).toFixed(4)} AERO reinvertidos en LP. Tx: ${res.txHash?.slice(0, 10)}...`
+        );
+      }
+    } else {
+      this.storage.addLog('ERROR', `Compound manual falló para #${pos.tokenId}: ${res.error}`);
+    }
+    return res;
   }
 }

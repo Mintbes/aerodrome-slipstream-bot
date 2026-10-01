@@ -2,7 +2,7 @@ import { createPublicClient, createWalletClient, http, fallback, formatUnits, pa
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
 import { config } from '../config';
-import { poolAbi, positionManagerAbi, erc20Abi, gaugeAbi, routerAbi } from './abis';
+import { poolAbi, positionManagerAbi, erc20Abi, gaugeAbi, routerAbi, v2RouterAbi } from './abis';
 import { sqrtPriceX96ToPrice, calculateZeroSwapUsdcRange, calculateZeroSwapWethRange, tickToPrice } from './math';
 
 export interface PoolState {
@@ -970,4 +970,368 @@ export class AerodromeService {
       return { success: false, error: err.shortMessage || err.message || String(err) };
     }
   }
+
+  /**
+   * Swaps AERO tokens to USDC using Aerodrome V2 Router (0xcF77...)
+   */
+  async swapAeroToUsdc(aeroAmountWei: bigint): Promise<{ success: boolean; txHash?: string; usdcReceived?: number; error?: string }> {
+    try {
+      if (aeroAmountWei <= 0n) {
+        return { success: false, error: 'Cantidad de AERO debe ser mayor a 0' };
+      }
+
+      if (config.dryRun) {
+        console.log(`[Service] [DryRun] Simulating swap of ${formatUnits(aeroAmountWei, 18)} AERO to USDC`);
+        const simUsdc = Number(formatUnits(aeroAmountWei, 18)) * 0.818;
+        return { success: true, txHash: '0x_simulated_swap_usdc_' + Date.now(), usdcReceived: simUsdc };
+      }
+
+      const accountAddress = this.account.address;
+      console.log(`[Service] Swapping ${formatUnits(aeroAmountWei, 18)} AERO to USDC via V2 Router...`);
+
+      // 1. Approve V2 Router to spend AERO if needed
+      const allowance = await this.publicClient.readContract({
+        address: config.contracts.aero,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [accountAddress, config.contracts.v2Router]
+      });
+
+      if (allowance < aeroAmountWei) {
+        console.log(`[Service] Approving AERO to V2 Router...`);
+        const approveTx = await this.walletClient.writeContract({
+          address: config.contracts.aero,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [config.contracts.v2Router, maxUint256]
+        });
+        await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+        await new Promise(r => setTimeout(r, 1500));
+      }
+
+      // 2. Query expected USDC output
+      const routes = [{
+        from: config.contracts.aero,
+        to: config.contracts.usdc,
+        stable: false,
+        factory: config.contracts.v2Factory
+      }];
+
+      const amountsOut = await this.publicClient.readContract({
+        address: config.contracts.v2Router,
+        abi: v2RouterAbi,
+        functionName: 'getAmountsOut',
+        args: [aeroAmountWei, routes]
+      });
+
+      const expectedUsdc = amountsOut[amountsOut.length - 1];
+      const minUsdc = (expectedUsdc * 98n) / 100n; // 2% max slippage
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+
+      const swapTx = await this.walletClient.writeContract({
+        address: config.contracts.v2Router,
+        abi: v2RouterAbi,
+        functionName: 'swapExactTokensForTokens',
+        gas: 350000n,
+        args: [
+          aeroAmountWei,
+          minUsdc,
+          routes,
+          accountAddress,
+          deadline
+        ]
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+      if (receipt.status !== 'success') {
+        throw new Error(`Fallo en la transacción de swap AERO->USDC (Tx: ${swapTx})`);
+      }
+
+      const usdcReceived = Number(expectedUsdc) / 1e6;
+      console.log(`[Service] Successfully swapped AERO -> ${usdcReceived.toFixed(2)} USDC! Tx: ${swapTx}`);
+      return { success: true, txHash: swapTx, usdcReceived };
+    } catch (err: any) {
+      console.error(`[Service] Swap AERO to USDC error:`, err);
+      return { success: false, error: err.shortMessage || err.message || String(err) };
+    }
+  }
+
+  /**
+   * Swaps AERO tokens to WETH using Aerodrome V2 Router (0xcF77...)
+   */
+  async swapAeroToWeth(aeroAmountWei: bigint): Promise<{ success: boolean; txHash?: string; wethReceived?: number; error?: string }> {
+    try {
+      if (aeroAmountWei <= 0n) {
+        return { success: false, error: 'Cantidad de AERO debe ser mayor a 0' };
+      }
+
+      if (config.dryRun) {
+        console.log(`[Service] [DryRun] Simulating swap of ${formatUnits(aeroAmountWei, 18)} AERO to WETH`);
+        const simWeth = (Number(formatUnits(aeroAmountWei, 18)) * 0.818) / 2700;
+        return { success: true, txHash: '0x_simulated_swap_weth_' + Date.now(), wethReceived: simWeth };
+      }
+
+      const accountAddress = this.account.address;
+      console.log(`[Service] Swapping ${formatUnits(aeroAmountWei, 18)} AERO to WETH via V2 Router...`);
+
+      // 1. Approve V2 Router
+      const allowance = await this.publicClient.readContract({
+        address: config.contracts.aero,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [accountAddress, config.contracts.v2Router]
+      });
+
+      if (allowance < aeroAmountWei) {
+        console.log(`[Service] Approving AERO to V2 Router...`);
+        const approveTx = await this.walletClient.writeContract({
+          address: config.contracts.aero,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [config.contracts.v2Router, maxUint256]
+        });
+        await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+        await new Promise(r => setTimeout(r, 1500));
+      }
+
+      const routes = [{
+        from: config.contracts.aero,
+        to: config.contracts.weth,
+        stable: false,
+        factory: config.contracts.v2Factory
+      }];
+
+      const amountsOut = await this.publicClient.readContract({
+        address: config.contracts.v2Router,
+        abi: v2RouterAbi,
+        functionName: 'getAmountsOut',
+        args: [aeroAmountWei, routes]
+      });
+
+      const expectedWeth = amountsOut[amountsOut.length - 1];
+      const minWeth = (expectedWeth * 98n) / 100n; // 2% max slippage
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+
+      const swapTx = await this.walletClient.writeContract({
+        address: config.contracts.v2Router,
+        abi: v2RouterAbi,
+        functionName: 'swapExactTokensForTokens',
+        gas: 350000n,
+        args: [
+          aeroAmountWei,
+          minWeth,
+          routes,
+          accountAddress,
+          deadline
+        ]
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+      if (receipt.status !== 'success') {
+        throw new Error(`Fallo en la transacción de swap AERO->WETH (Tx: ${swapTx})`);
+      }
+
+      const wethReceived = Number(expectedWeth) / 1e18;
+      console.log(`[Service] Successfully swapped AERO -> ${wethReceived.toFixed(4)} WETH! Tx: ${swapTx}`);
+      return { success: true, txHash: swapTx, wethReceived };
+    } catch (err: any) {
+      console.error(`[Service] Swap AERO to WETH error:`, err);
+      return { success: false, error: err.shortMessage || err.message || String(err) };
+    }
+  }
+
+  /**
+   * Executes Auto-Harvest to USDC or Auto-Compound to LP
+   */
+  async executeCompound(
+    tokenId: string,
+    mode: 'usdc' | 'reinvest' = 'usdc'
+  ): Promise<{
+    success: boolean;
+    mode: 'usdc' | 'reinvest';
+    claimedAero?: number;
+    usdcReceived?: number;
+    txHash?: string;
+    error?: string;
+  }> {
+    try {
+      console.log(`[Service] Executing Compound (${mode.toUpperCase()}) for NFT #${tokenId}...`);
+
+      if (config.dryRun) {
+        console.log(`[Service] [DryRun] Compound simulated successfully for #${tokenId} in mode: ${mode}`);
+        return {
+          success: true,
+          mode,
+          claimedAero: 10,
+          usdcReceived: mode === 'usdc' ? 8.18 : undefined,
+          txHash: '0x_simulated_compound_' + Date.now()
+        };
+      }
+
+      // 1. Claim AERO from Gauge
+      const claimRes = await this.claimAeroRewards(tokenId);
+      if (!claimRes.success) {
+        return { success: false, mode, error: claimRes.error || 'Fallo al reclamar del Gauge' };
+      }
+
+      // Check current wallet AERO balance
+      const aeroBal = await this.publicClient.readContract({
+        address: config.contracts.aero,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [this.account.address]
+      });
+
+      const aeroBalNum = Number(formatUnits(aeroBal, 18));
+      if (aeroBal <= 1000000000000000n) { // < 0.001 AERO
+        return {
+          success: true,
+          mode,
+          claimedAero: claimRes.claimedAero || 0,
+          txHash: claimRes.txHash,
+          error: 'Recompensas mínimas cosechadas sin swap'
+        };
+      }
+
+      if (mode === 'usdc') {
+        // Mode 1: Auto-Cosecha a USDC (pure profit cash-out to wallet)
+        const swapRes = await this.swapAeroToUsdc(aeroBal);
+        if (!swapRes.success) {
+          return {
+            success: false,
+            mode,
+            claimedAero: claimRes.claimedAero,
+            txHash: claimRes.txHash,
+            error: `AERO reclamado pero falló el swap a USDC: ${swapRes.error}`
+          };
+        }
+
+        return {
+          success: true,
+          mode: 'usdc',
+          claimedAero: claimRes.claimedAero || aeroBalNum,
+          usdcReceived: swapRes.usdcReceived,
+          txHash: swapRes.txHash
+        };
+      } else {
+        // Mode 2: Auto-Compound a LP (Reinvest in concentrated position)
+        const halfAero = aeroBal / 2n;
+        const remainingAero = aeroBal - halfAero;
+
+        const [swapUsdcRes, swapWethRes] = await Promise.all([
+          this.swapAeroToUsdc(halfAero),
+          this.swapAeroToWeth(remainingAero)
+        ]);
+
+        if (!swapUsdcRes.success || !swapWethRes.success) {
+          return {
+            success: false,
+            mode,
+            claimedAero: claimRes.claimedAero,
+            error: `Swap de AERO falló: ${swapUsdcRes.error || swapWethRes.error}`
+          };
+        }
+
+        // Check if position is staked in Gauge. If so, unstake first to allow increaseLiquidity
+        const isStaked = await this.publicClient.readContract({
+          address: config.contracts.gauge,
+          abi: gaugeAbi,
+          functionName: 'stakedContains',
+          args: [this.account.address, BigInt(tokenId)]
+        });
+
+        if (isStaked) {
+          console.log(`[Service] Temporarily withdrawing #${tokenId} from Gauge for increaseLiquidity...`);
+          await this.withdrawPositionFromGauge(tokenId);
+          await new Promise(r => setTimeout(r, 2000));
+        }
+
+        // Get fresh balances
+        const [wethBal, usdcBal] = await Promise.all([
+          this.publicClient.readContract({
+            address: config.contracts.weth,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [this.account.address]
+          }),
+          this.publicClient.readContract({
+            address: config.contracts.usdc,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [this.account.address]
+          })
+        ]);
+
+        // Approvals to PositionManager
+        const [wethAllowance, usdcAllowance] = await Promise.all([
+          this.publicClient.readContract({
+            address: config.contracts.weth,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [this.account.address, config.contracts.positionManager]
+          }),
+          this.publicClient.readContract({
+            address: config.contracts.usdc,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [this.account.address, config.contracts.positionManager]
+          })
+        ]);
+
+        if (wethAllowance < wethBal) {
+          const txW = await this.walletClient.writeContract({
+            address: config.contracts.weth,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [config.contracts.positionManager, maxUint256]
+          });
+          await this.publicClient.waitForTransactionReceipt({ hash: txW });
+        }
+
+        if (usdcAllowance < usdcBal) {
+          const txU = await this.walletClient.writeContract({
+            address: config.contracts.usdc,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [config.contracts.positionManager, maxUint256]
+          });
+          await this.publicClient.waitForTransactionReceipt({ hash: txU });
+        }
+
+        // Increase liquidity
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
+        const incTx = await this.walletClient.writeContract({
+          address: config.contracts.positionManager,
+          abi: positionManagerAbi,
+          functionName: 'increaseLiquidity',
+          gas: 500000n,
+          args: [{
+            tokenId: BigInt(tokenId),
+            amount0Desired: wethBal,
+            amount1Desired: usdcBal,
+            amount0Min: 0n,
+            amount1Min: 0n,
+            deadline
+          }]
+        });
+
+        await this.publicClient.waitForTransactionReceipt({ hash: incTx });
+        console.log(`[Service] Liquidity increased on #${tokenId}! Tx: ${incTx}`);
+
+        // Re-stake into Gauge
+        await this.stakePositionInGauge(tokenId);
+
+        return {
+          success: true,
+          mode: 'reinvest',
+          claimedAero: claimRes.claimedAero,
+          txHash: incTx
+        };
+      }
+    } catch (err: any) {
+      console.error(`[Service] Compound execution error:`, err);
+      return { success: false, mode, error: err.shortMessage || err.message || String(err) };
+    }
+  }
 }
+

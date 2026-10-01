@@ -284,6 +284,100 @@
     </div>
   </div>
 
+  <!-- Modal: Ajustes de Auto-Compound & Cosecha -->
+  <div id="compound-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#141f33] border border-[#2b3d5b] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#212f45] pb-3">
+        <h3 class="text-base md:text-lg font-bold text-white flex items-center gap-2">
+          <span>⚙️</span> Configuración de Auto-Compound / Cosecha
+        </h3>
+        <button onclick="closeCompoundModal()" class="text-gray-400 hover:text-white text-lg cursor-pointer">✕</button>
+      </div>
+
+      <input type="hidden" id="compound-target-tokenid" value="">
+
+      <!-- Mode Selection -->
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+          Modo de Operación:
+        </label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="p-3.5 rounded-xl border border-[#2f4363] bg-[#1a2842] hover:border-emerald-500 cursor-pointer flex flex-col justify-between transition" id="mode-label-usdc">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-white flex items-center gap-1.5">
+                💵 Cosecha a USDC
+              </span>
+              <input type="radio" name="compound-mode" value="usdc" checked class="accent-emerald-400" onchange="updateCompoundModeUI()">
+            </div>
+            <p class="text-[11px] text-gray-400 mt-2">
+              Cambia el 100% de AERO ganado directamente a USDC en tu wallet. Beneficio seguro sin impermanent loss.
+            </p>
+          </label>
+
+          <label class="p-3.5 rounded-xl border border-[#2f4363] bg-[#1a2842] hover:border-blue-500 cursor-pointer flex flex-col justify-between transition" id="mode-label-reinvest">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-bold text-white flex items-center gap-1.5">
+                🔄 Auto-Compound LP
+              </span>
+              <input type="radio" name="compound-mode" value="reinvest" class="accent-blue-400" onchange="updateCompoundModeUI()">
+            </div>
+            <p class="text-[11px] text-gray-400 mt-2">
+              Cambia AERO a 50% WETH y 50% USDC y aumenta la liquidez de tu NFT para maximizar el interés compuesto.
+            </p>
+          </label>
+        </div>
+      </div>
+
+      <!-- Dollar Threshold -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-gray-300 uppercase tracking-wider">
+            Umbral Mínimo de Dólares ($):
+          </label>
+          <span class="text-[11px] text-emerald-400 font-mono font-bold" id="compound-gas-ratio-hint">Gas ~0.08% de los beneficios</span>
+        </div>
+        <div class="relative">
+          <input id="input-compound-threshold" type="number" step="5" min="5" value="25" oninput="updateCompoundHint()" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-3 text-lg text-white font-mono font-bold focus:outline-none focus:border-emerald-500">
+          <span class="absolute right-4 top-3.5 text-xs font-bold text-gray-400">USD</span>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button onclick="setCompoundThreshold(10)" class="px-3 py-1 bg-[#1a2842] hover:bg-[#253756] border border-[#2f4363] rounded-lg text-xs font-mono text-gray-300 cursor-pointer">$10</button>
+          <button onclick="setCompoundThreshold(25)" class="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 rounded-lg text-xs font-mono font-bold cursor-pointer">$25 (Óptimo)</button>
+          <button onclick="setCompoundThreshold(50)" class="px-3 py-1 bg-[#1a2842] hover:bg-[#253756] border border-[#2f4363] rounded-lg text-xs font-mono text-gray-300 cursor-pointer">$50</button>
+          <button onclick="setCompoundThreshold(100)" class="px-3 py-1 bg-[#1a2842] hover:bg-[#253756] border border-[#2f4363] rounded-lg text-xs font-mono text-gray-300 cursor-pointer">$100</button>
+        </div>
+        <p class="text-[11px] text-gray-400">
+          💡 <strong>Eficiencia Máxima:</strong> El bot esperará a acumular este valor en comisiones/AERO antes de ejecutar la transacción on-chain, garantizando que el gas (<$0.02) sea despreciable.
+        </p>
+      </div>
+
+      <!-- State Toggle -->
+      <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
+        <div>
+          <p class="font-semibold text-white text-xs">Ejecución Automática</p>
+          <p class="text-[10px] text-gray-400">El bot ejecutará la cosecha/compound en segundo plano al llegar al umbral.</p>
+        </div>
+        <input id="input-compound-active" type="checkbox" checked class="w-5 h-5 accent-emerald-400 cursor-pointer">
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#212f45]">
+        <button onclick="executeManualCompoundFromModal()" id="btn-modal-manual-compound" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#1e293b] hover:bg-[#2d3e58] border border-[#374c6e] text-xs font-bold text-emerald-300 transition cursor-pointer flex items-center justify-center gap-1.5">
+          <span>⚡</span> Ejecutar Ahora Manualmente
+        </button>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button onclick="closeCompoundModal()" class="px-4 py-2.5 rounded-xl bg-[#1c2b45] hover:bg-[#253756] text-xs font-semibold text-gray-300 cursor-pointer">
+            Cancelar
+          </button>
+          <button onclick="saveCompoundConfig()" class="px-5 py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow cursor-pointer">
+            Guardar Cambios
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="border-t border-[#212f45] py-4 text-center text-xs text-gray-500">
     <p>Personal DeFi Liquidity Keeper · Aerodrome Slipstream CL100 · 0% Performance Fees</p>
@@ -388,6 +482,9 @@
           : '';
 
         const ageStr = timeAgo(pos.createdAt);
+        const cMode = pos.compoundMode || window.currentStatusData?.compoundMode || 'usdc';
+        const cThreshold = pos.compoundThresholdUsd || window.currentStatusData?.compoundThresholdUsd || 25;
+        const cModeLabel = cMode === 'reinvest' ? '🔄 Reinvertir LP' : '💵 Cosecha USDC';
 
         // Range math
         const rangeWidth = Math.max(1, pos.priceUpper - pos.priceLower);
@@ -557,15 +654,22 @@
                   </div>
                 </div>
 
-                <div onclick="togglePositionFeature('${tokenId}', 'compound')" class="flex items-center justify-between p-4 rounded-xl bg-[#1a2842] border border-[#2f4363] hover:border-[#3d557c] transition cursor-pointer select-none">
-                  <div>
-                    <p class="text-sm font-bold text-white flex items-center gap-1">
-                      Compound <span class="text-xs text-gray-500 cursor-help" title="Reinvierte comisiones y AERO automáticamente">ⓘ</span>
+                <div class="flex items-center justify-between p-4 rounded-xl bg-[#1a2842] border border-[#2f4363] hover:border-[#3d557c] transition select-none">
+                  <div onclick="togglePositionFeature('${tokenId}', 'compound')" class="cursor-pointer flex-1 pr-2">
+                    <p class="text-sm font-bold text-white flex items-center gap-1.5">
+                      Auto-Compound
                     </p>
-                    <p class="text-xs font-bold ${pos.compound !== false ? 'text-[#22c55e]' : 'text-gray-400'}">${pos.compound !== false ? 'Enabled' : 'Disabled'}</p>
+                    <p class="text-xs font-bold ${pos.compound !== false ? 'text-[#22c55e]' : 'text-gray-400'}">
+                      ${pos.compound !== false ? 'Enabled' : 'Disabled'} <span class="text-gray-400 font-normal">· ${cModeLabel} (≥$${cThreshold})</span>
+                    </p>
                   </div>
-                  <div class="w-12 h-6 flex items-center ${pos.compound !== false ? 'bg-[#22c55e]' : 'bg-[#1e293b]'} rounded-full p-1 transition-colors duration-300 shadow">
-                    <div class="bg-white w-4 h-4 rounded-full shadow-md transform ${pos.compound !== false ? 'translate-x-6' : 'translate-x-0'} transition-transform duration-300"></div>
+                  <div class="flex items-center gap-2">
+                    <button onclick="event.stopPropagation(); openCompoundModal('${tokenId}')" title="Configurar Modo y Umbral" class="p-1.5 rounded-lg bg-[#253650] hover:bg-[#344868] text-gray-300 hover:text-white transition cursor-pointer text-xs">
+                      ⚙️
+                    </button>
+                    <div onclick="togglePositionFeature('${tokenId}', 'compound')" class="w-12 h-6 flex items-center ${pos.compound !== false ? 'bg-[#22c55e]' : 'bg-[#1e293b]'} rounded-full p-1 transition-colors duration-300 shadow cursor-pointer">
+                      <div class="bg-white w-4 h-4 rounded-full shadow-md transform ${pos.compound !== false ? 'translate-x-6' : 'translate-x-0'} transition-transform duration-300"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -573,14 +677,18 @@
               <!-- Notification Banner -->
               ${bannerHtml}
 
-              <!-- Action Buttons Row -->
-              <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button onclick="claimRewardsForToken('${tokenId}')" id="btn-claim-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
-                  Claim AERO
+              <!-- Action Buttons Row (3 Actions: Claim, Compound, Rebalance) -->
+              <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button onclick="claimRewardsForToken('${tokenId}')" id="btn-claim-${tokenId}" class="w-full py-3 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-bold text-xs md:text-sm shadow transition active:scale-98 cursor-pointer flex items-center justify-center gap-1.5">
+                  <span>📥</span> Claim AERO
                 </button>
 
-                <button onclick="triggerRebalanceForToken('${tokenId}')" id="btn-rebalance-${tokenId}" class="w-full py-3.5 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-sm md:text-base shadow-lg transition active:scale-98 cursor-pointer">
-                  Snuggle Rebalance
+                <button onclick="triggerManualCompoundForToken('${tokenId}')" id="btn-compound-${tokenId}" class="w-full py-3 rounded-xl bg-[#0e7490] hover:bg-[#0891b2] text-white font-bold text-xs md:text-sm shadow transition active:scale-98 cursor-pointer flex items-center justify-center gap-1.5">
+                  <span>${cMode === 'reinvest' ? '🔄' : '💵'}</span> ${cMode === 'reinvest' ? 'Reinvertir LP' : 'Cosechar a USDC'}
+                </button>
+
+                <button onclick="triggerRebalanceForToken('${tokenId}')" id="btn-rebalance-${tokenId}" class="w-full py-3 rounded-xl bg-[#1d4ed8] hover:bg-[#2563eb] text-white font-bold text-xs md:text-sm shadow transition active:scale-98 cursor-pointer flex items-center justify-center gap-1.5">
+                  <span>⚖️</span> Snuggle Rebalance
                 </button>
               </div>
 
@@ -693,6 +801,174 @@
         await updateDashboard();
       } catch (e) {
         console.error('Toggle error:', e);
+      }
+    }
+
+    function openCompoundModal(tokenId) {
+      const modal = document.getElementById('compound-modal');
+      const targetInput = document.getElementById('compound-target-tokenid');
+      if (targetInput) targetInput.value = tokenId || '';
+
+      const pos = (window.currentStatusData?.positions || []).find(p => p.tokenId === tokenId) 
+        || window.currentStatusData?.position;
+
+      const currentMode = pos?.compoundMode || window.currentStatusData?.compoundMode || 'usdc';
+      const currentThreshold = pos?.compoundThresholdUsd || window.currentStatusData?.compoundThresholdUsd || 25;
+      const isEnabled = pos ? (pos.compound !== false) : (window.currentStatusData?.compound !== false);
+
+      const radio = document.querySelector(`input[name="compound-mode"][value="${currentMode}"]`);
+      if (radio) radio.checked = true;
+
+      const threshInput = document.getElementById('input-compound-threshold');
+      if (threshInput) threshInput.value = currentThreshold;
+
+      const activeCheckbox = document.getElementById('input-compound-active');
+      if (activeCheckbox) activeCheckbox.checked = isEnabled;
+
+      updateCompoundModeUI();
+      updateCompoundHint();
+      modal.classList.remove('hidden');
+    }
+
+    function closeCompoundModal() {
+      const modal = document.getElementById('compound-modal');
+      modal.classList.add('hidden');
+    }
+
+    function updateCompoundModeUI() {
+      const selectedMode = document.querySelector('input[name="compound-mode"]:checked')?.value || 'usdc';
+      const labelUsdc = document.getElementById('mode-label-usdc');
+      const labelReinvest = document.getElementById('mode-label-reinvest');
+
+      if (labelUsdc) {
+        labelUsdc.className = selectedMode === 'usdc'
+          ? 'p-3.5 rounded-xl border-2 border-emerald-500 bg-emerald-500/10 cursor-pointer flex flex-col justify-between transition shadow'
+          : 'p-3.5 rounded-xl border border-[#2f4363] bg-[#1a2842] hover:border-emerald-500/50 cursor-pointer flex flex-col justify-between transition';
+      }
+      if (labelReinvest) {
+        labelReinvest.className = selectedMode === 'reinvest'
+          ? 'p-3.5 rounded-xl border-2 border-blue-500 bg-blue-500/10 cursor-pointer flex flex-col justify-between transition shadow'
+          : 'p-3.5 rounded-xl border border-[#2f4363] bg-[#1a2842] hover:border-blue-500/50 cursor-pointer flex flex-col justify-between transition';
+      }
+
+      const manualBtn = document.getElementById('btn-modal-manual-compound');
+      if (manualBtn) {
+        manualBtn.innerHTML = selectedMode === 'reinvest'
+          ? '<span>🔄</span> Reinvertir LP Ahora'
+          : '<span>💵</span> Cosechar a USDC Ahora';
+      }
+    }
+
+    function setCompoundThreshold(val) {
+      const input = document.getElementById('input-compound-threshold');
+      if (input) {
+        input.value = val;
+        updateCompoundHint();
+      }
+    }
+
+    function updateCompoundHint() {
+      const input = document.getElementById('input-compound-threshold');
+      const hint = document.getElementById('compound-gas-ratio-hint');
+      if (!input || !hint) return;
+      const val = parseFloat(input.value) || 25;
+      const gasEstUsd = 0.02; // Average gas on Base
+      const ratioPct = (gasEstUsd / val) * 100;
+      hint.textContent = `Gas estimado: ~${ratioPct < 0.01 ? '<0.01' : ratioPct.toFixed(2)}% del valor cosechado`;
+    }
+
+    async function saveCompoundConfig() {
+      const tokenId = document.getElementById('compound-target-tokenid')?.value || undefined;
+      const mode = document.querySelector('input[name="compound-mode"]:checked')?.value || 'usdc';
+      const thresholdUsd = parseFloat(document.getElementById('input-compound-threshold')?.value || '25');
+      const enabled = document.getElementById('input-compound-active')?.checked ?? true;
+
+      try {
+        const res = await fetch('/api/compound-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId, mode, thresholdUsd, enabled })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeCompoundModal();
+          await updateDashboard();
+        } else {
+          alert('Error al guardar ajustes: ' + (data.error || 'Desconocido'));
+        }
+      } catch (err) {
+        alert('Error de red: ' + err.message);
+      }
+    }
+
+    async function triggerManualCompoundForToken(tokenId) {
+      const btn = document.getElementById(`btn-compound-${tokenId}`);
+      const originalHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Ejecutando...';
+      }
+      try {
+        const pos = (window.currentStatusData?.positions || []).find(p => p.tokenId === tokenId);
+        const mode = pos?.compoundMode || 'usdc';
+        const res = await fetch('/api/compound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId, mode })
+        });
+        const json = await res.json();
+        if (json.success) {
+          const detail = json.mode === 'usdc'
+            ? `${(json.claimedAero || 0).toFixed(4)} AERO cambiados a $${(json.usdcReceived || 0).toFixed(2)} USDC en tu wallet!`
+            : `${(json.claimedAero || 0).toFixed(4)} AERO reinvertidos en la posición LP #${tokenId}!`;
+          alert(`🎉 ¡Auto-Compound exitoso!\n${detail}\nTx: ${json.txHash?.slice(0, 10)}...`);
+        } else {
+          alert(`Aviso: ${json.error || 'No se pudo completar el compound'}`);
+        }
+        await updateDashboard();
+      } catch (err) {
+        alert('Error al ejecutar compound: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      }
+    }
+
+    async function executeManualCompoundFromModal() {
+      const tokenId = document.getElementById('compound-target-tokenid')?.value || undefined;
+      const mode = document.querySelector('input[name="compound-mode"]:checked')?.value || 'usdc';
+      const btn = document.getElementById('btn-modal-manual-compound');
+      const originalHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Ejecutando on-chain...';
+      }
+      try {
+        const res = await fetch('/api/compound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId, mode })
+        });
+        const json = await res.json();
+        if (json.success) {
+          const detail = json.mode === 'usdc'
+            ? `${(json.claimedAero || 0).toFixed(4)} AERO cambiados a $${(json.usdcReceived || 0).toFixed(2)} USDC en tu wallet!`
+            : `${(json.claimedAero || 0).toFixed(4)} AERO reinvertidos en tu posición LP!`;
+          alert(`🎉 ¡Ejecución exitosa!\n${detail}\nTx: ${json.txHash?.slice(0, 10)}...`);
+          closeCompoundModal();
+          await updateDashboard();
+        } else {
+          alert(`Aviso: ${json.error || 'No se pudo completar el compound'}`);
+        }
+      } catch (err) {
+        alert('Error al ejecutar: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
       }
     }
 

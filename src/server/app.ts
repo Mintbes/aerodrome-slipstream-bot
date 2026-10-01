@@ -83,6 +83,8 @@ export function createServer(keeper: KeeperEngine) {
           createdAt: pos.createdAt || (Date.now() - 36000000),
           autoSnuggle: pos.autoSnuggle !== false,
           compound: pos.compound !== false,
+          compoundMode: pos.compoundMode || botState.compoundMode || 'usdc',
+          compoundThresholdUsd: pos.compoundThresholdUsd || botState.compoundThresholdUsd || 25,
           wethAmount: amounts.wethAmount,
           usdcAmount: amounts.usdcAmount,
           lpValue: amounts.lpValueUsd,
@@ -168,6 +170,8 @@ export function createServer(keeper: KeeperEngine) {
         totalHarvestedAero: botState.totalHarvestedAero,
         autoSnuggle: botState.autoSnuggle !== false,
         compound: botState.compound !== false,
+        compoundMode: botState.compoundMode || 'usdc',
+        compoundThresholdUsd: botState.compoundThresholdUsd || 25,
         dryRun: config.dryRun,
         rangeWidthPercent: config.rangeWidthPercent,
         rebalanceDelaySeconds: config.rebalanceDelaySeconds,
@@ -200,6 +204,58 @@ export function createServer(keeper: KeeperEngine) {
       }
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Configure Auto-Compound endpoint (Mode & Threshold)
+  app.post('/api/compound-config', (req, res) => {
+    try {
+      const { tokenId, mode, thresholdUsd, enabled } = req.body;
+      const validMode = (mode === 'reinvest' ? 'reinvest' : 'usdc');
+      const validThreshold = Number(thresholdUsd) > 0 ? Number(thresholdUsd) : 25;
+
+      if (tokenId) {
+        keeper.getStorage().updatePosition(tokenId, p => {
+          if (mode !== undefined) p.compoundMode = validMode;
+          if (thresholdUsd !== undefined) p.compoundThresholdUsd = validThreshold;
+          if (enabled !== undefined) p.compound = Boolean(enabled);
+        });
+      }
+
+      keeper.getStorage().updateState(s => {
+        if (mode !== undefined) s.compoundMode = validMode;
+        if (thresholdUsd !== undefined) s.compoundThresholdUsd = validThreshold;
+        if (enabled !== undefined) s.compound = Boolean(enabled);
+      });
+
+      keeper.getStorage().addLog(
+        'INFO',
+        `Ajustes de Auto-Compound actualizados: Modo ${validMode.toUpperCase()} (${validMode === 'usdc' ? '💵 Cosecha a USDC' : '🔄 Reinvertir LP'}), Umbral $${validThreshold}${tokenId ? ` para #${tokenId}` : ''}.`
+      );
+
+      res.json({
+        success: true,
+        compoundMode: validMode,
+        compoundThresholdUsd: validThreshold,
+        enabled: enabled !== undefined ? Boolean(enabled) : true
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Manual Compound / Harvest endpoint
+  app.post('/api/compound', async (req, res) => {
+    try {
+      const { tokenId, mode } = req.body || {};
+      const result = await keeper.manualCompound(tokenId, mode);
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 
