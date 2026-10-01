@@ -11,6 +11,16 @@ export function createServer(keeper: KeeperEngine) {
   app.use(cors());
   app.use(express.json());
 
+  // Prevent browser caching of dashboard HTML so updates appear immediately
+  app.use((req, res, next) => {
+    if (req.path === '/' || req.path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    next();
+  });
+
   // Serve static dashboard UI (supports both ts-node in src and compiled js in dist)
   const publicPath = fs.existsSync(path.join(__dirname, 'public'))
     ? path.join(__dirname, 'public')
