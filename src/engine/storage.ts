@@ -17,6 +17,8 @@ export interface PositionItem {
   compound?: boolean;
   compoundMode?: CompoundMode;
   compoundThresholdUsd?: number;
+  harvestedAero?: number;
+  collectedUsd?: number;
 }
 
 export interface BotState {
@@ -112,6 +114,14 @@ export class StorageService {
           for (const p of parsed.positions) {
             if (p.compoundMode === undefined) p.compoundMode = parsed.compoundMode;
             if (p.compoundThresholdUsd === undefined) p.compoundThresholdUsd = parsed.compoundThresholdUsd;
+            if (p.harvestedAero === undefined) {
+              p.harvestedAero = (p.tokenId === '77245545' || parsed.positions.length === 1)
+                ? (parsed.totalHarvestedAero || 0)
+                : 0;
+            }
+            if (p.collectedUsd === undefined) {
+              p.collectedUsd = (p.harvestedAero || 0) * 0.80;
+            }
           }
         }
         return parsed;

@@ -31,6 +31,36 @@ export class AerodromeService {
   public publicClient;
   public walletClient;
   public account;
+  private cachedAeroPrice: { price: number; timestamp: number } | null = null;
+
+  async getAeroPriceUsd(): Promise<number> {
+    const now = Date.now();
+    if (this.cachedAeroPrice && (now - this.cachedAeroPrice.timestamp < 60000)) {
+      return this.cachedAeroPrice.price;
+    }
+    try {
+      const routes = [{
+        from: config.contracts.aero,
+        to: config.contracts.usdc,
+        stable: false,
+        factory: config.contracts.v2Factory
+      }];
+      const amountsOut = await this.publicClient.readContract({
+        address: config.contracts.v2Router,
+        abi: v2RouterAbi,
+        functionName: 'getAmountsOut',
+        args: [1000000000000000000n, routes]
+      });
+      const aeroPrice = Number(amountsOut[amountsOut.length - 1]) / 1e6;
+      if (aeroPrice > 0) {
+        this.cachedAeroPrice = { price: aeroPrice, timestamp: now };
+        return aeroPrice;
+      }
+    } catch (e) {
+      console.warn('[Service] Could not fetch live AERO price, using fallback:', e);
+    }
+    return this.cachedAeroPrice ? this.cachedAeroPrice.price : 0.80;
+  }
 
   constructor() {
     // Multi-RPC failover pool to prevent rate-limit throttling
@@ -798,8 +828,8 @@ export class AerodromeService {
             functionName: 'earned',
             args: [this.account.address, BigInt(tokenId)]
           });
-          uncollectedAero = Number(formatUnits(earnedWei, 18));
-          uncollectedFeesUsd = uncollectedAero * 0.81;
+          const aeroPrice = await this.getAeroPriceUsd();
+          uncollectedFeesUsd = uncollectedAero * aeroPrice;
           apr = 183.3;
         } catch (simErr) {
           console.error('[Service] Error reading gauge earned:', simErr);

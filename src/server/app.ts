@@ -70,6 +70,15 @@ export function createServer(keeper: KeeperEngine) {
         }
 
         const isCurrentlyInRange = keeper.getService().isTickInRange(poolState.currentTick, pos.tickLower, pos.tickUpper);
+        const aeroPrice = await keeper.getService().getAeroPriceUsd();
+
+        const posHarvestedAero = pos.harvestedAero !== undefined
+          ? pos.harvestedAero
+          : (pos.tokenId === '77245545' || rawPositions.length === 1 ? (botState.totalHarvestedAero || 0) : 0);
+        const posCollectedUsd = pos.collectedUsd !== undefined
+          ? pos.collectedUsd
+          : (posHarvestedAero * aeroPrice);
+        const posTotalEarnedUsd = posCollectedUsd + amounts.uncollectedFeesUsd;
 
         return {
           tokenId: pos.tokenId,
@@ -93,17 +102,23 @@ export function createServer(keeper: KeeperEngine) {
           uncollectedUsdc: amounts.uncollectedUsdc,
           uncollectedAero: amounts.uncollectedAero,
           uncollectedFeesUsd: amounts.uncollectedFeesUsd,
+          collectedAero: posHarvestedAero,
+          collectedUsd: posCollectedUsd,
+          totalEarnedUsd: posTotalEarnedUsd,
           isStakedInGauge: amounts.isStakedInGauge,
           apr: amounts.apr,
           dailyProjectedUsd: (amounts.lpValueUsd * (amounts.apr / 100)) / 365
         };
       }));
 
+      const aeroPrice = await keeper.getService().getAeroPriceUsd();
+
       // Totals calculation
       const totalLpValue = positions.reduce((sum, p) => sum + (p.lpValue || 0), 0);
       const totalUncollectedUsd = positions.reduce((sum, p) => sum + (p.uncollectedFeesUsd || 0), 0);
       const totalUncollectedAero = positions.reduce((sum, p) => sum + (p.uncollectedAero || 0), 0);
-      const totalCollectedUsd = (botState.totalHarvestedAero || 0) * 0.81;
+      const totalCollectedUsd = positions.reduce((sum, p) => sum + (p.collectedUsd || 0), 0);
+      const totalCollectedAero = positions.reduce((sum, p) => sum + (p.collectedAero || 0), 0);
       const totalEarnedUsd = totalCollectedUsd + totalUncollectedUsd;
       const totalRebalancesCount = positions.reduce((sum, p) => sum + (p.rebalancesCount || 0), 0);
 
@@ -131,7 +146,8 @@ export function createServer(keeper: KeeperEngine) {
       const walletEthVal = b.eth * currentPrice;
       const walletWethVal = b.weth * currentPrice;
       const walletUsdcVal = b.usdc;
-      const walletTotalUsd = walletWethVal + walletUsdcVal + walletEthVal;
+      const walletAeroVal = b.aero * aeroPrice;
+      const walletTotalUsd = walletWethVal + walletUsdcVal + walletEthVal + walletAeroVal;
       const totalPortfolioValue = totalLpValue + walletTotalUsd;
 
       res.json({
@@ -146,8 +162,10 @@ export function createServer(keeper: KeeperEngine) {
           walletTotalUsd,
           totalEarnedUsd,
           totalCollectedUsd,
+          totalCollectedAero,
           totalUncollectedUsd,
           totalUncollectedAero,
+          aeroPriceUsd: aeroPrice,
           portfolioYieldApr: weightedApr,
           dailyProjectedUsd: totalDailyProjectedUsd,
           activePositionsCount: positions.length,
@@ -157,10 +175,12 @@ export function createServer(keeper: KeeperEngine) {
         position: primaryPos,
         earnings: {
           collectedUsd: totalCollectedUsd,
+          collectedAero: totalCollectedAero,
           uncollectedUsd: totalUncollectedUsd,
+          uncollectedAero: totalUncollectedAero,
+          aeroPriceUsd: aeroPrice,
           uncollectedWeth: positions[0]?.uncollectedWeth || 0,
           uncollectedUsdc: positions[0]?.uncollectedUsdc || 0,
-          uncollectedAero: totalUncollectedAero,
           totalEarnedUsd
         },
         apr: weightedApr,
@@ -351,8 +371,14 @@ export function createServer(keeper: KeeperEngine) {
       const result = await keeper.getService().claimAeroRewards(tokenId);
 
       if (result.success) {
+        const claimedAero = result.claimedAero || 0;
+        const aeroPrice = await keeper.getService().getAeroPriceUsd();
+        keeper.getStorage().updatePosition(tokenId, p => {
+          p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
+          p.collectedUsd = (p.collectedUsd || 0) + (claimedAero * aeroPrice);
+        });
         keeper.getStorage().updateState(s => {
-          s.totalHarvestedAero = (s.totalHarvestedAero || 0) + (result.claimedAero || 0);
+          s.totalHarvestedAero = (s.totalHarvestedAero || 0) + claimedAero;
         });
         keeper.getStorage().addLog('ACTION', `🎉 ¡${(result.claimedAero || 0).toFixed(4)} AERO reclamados a tu wallet para #${tokenId}! Tx: ${result.txHash?.slice(0, 10)}...`);
         res.json({ success: true, txHash: result.txHash, claimedAero: result.claimedAero });

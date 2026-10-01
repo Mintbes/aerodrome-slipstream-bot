@@ -519,9 +519,13 @@
         const apy = pos.apr || 183.3;
         const daily = (lpVal * (apy / 100)) / 365;
 
-        const collectedUsd = (pos.collectedUsd !== undefined) ? pos.collectedUsd : (window.currentStatusData?.earnings?.collectedUsd || 0);
-        const uncollectedUsd = (pos.uncollectedFeesUsd !== undefined) ? pos.uncollectedFeesUsd : (pos.uncollectedUsd || 0);
-        const totalEarned = (pos.totalEarnedUsd !== undefined) ? pos.totalEarnedUsd : (collectedUsd + uncollectedUsd);
+        const collectedUsd = (typeof pos.collectedUsd === 'number') ? pos.collectedUsd : 0;
+        const uncollectedUsd = (typeof pos.uncollectedFeesUsd === 'number') ? pos.uncollectedFeesUsd : (pos.uncollectedUsd || 0);
+        const totalEarned = (typeof pos.totalEarnedUsd === 'number') ? pos.totalEarnedUsd : (collectedUsd + uncollectedUsd);
+        const collectedAero = pos.collectedAero || 0;
+        const collectedAeroStr = (collectedAero > 0)
+          ? ` (${collectedAero < 0.01 ? collectedAero.toFixed(4) : collectedAero.toFixed(2)} AERO)`
+          : '';
         const uncollectedAero = pos.uncollectedAero || 0;
         const aeroStr = (uncollectedAero > 0)
           ? ` (${uncollectedAero < 0.01 ? uncollectedAero.toFixed(4) : uncollectedAero.toFixed(2)} AERO)`
@@ -626,7 +630,7 @@
                 <p class="${isExpanded ? 'text-xs' : 'text-[10px]'} text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
                 <h4 class="${isExpanded ? 'text-2xl md:text-3xl font-extrabold mt-1' : 'text-base md:text-lg font-bold mt-0.5'} text-[#22c55e] tracking-tight">$${totalEarned.toFixed(2)}</h4>
                 <div class="${isExpanded ? 'text-xs mt-1 space-y-0.5' : 'text-[11px] mt-0.5 space-y-0'} text-gray-300 font-mono font-medium">
-                  <p>├ $${collectedUsd.toFixed(2)} collected</p>
+                  <p>├ $${collectedUsd.toFixed(2)} collected${collectedAeroStr}</p>
                   <p class="text-[#22c55e]">└ $${uncollectedUsd.toFixed(2)} uncollected${aeroStr}</p>
                 </div>
               </div>
@@ -669,7 +673,7 @@
                 <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
                   <span class="text-sm font-medium text-gray-400">Range</span>
                   <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
-                    <span>4.1%</span> 
+                    <span>${(((pos.priceUpper - pos.priceLower) / pos.priceLower) * 100).toFixed(1)}%</span> 
                     <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm cursor-pointer">✏️</button>
                   </span>
                 </div>
@@ -677,7 +681,7 @@
                 <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
                   <span class="text-sm font-medium text-gray-400">Delay</span>
                   <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
-                    <span>1h</span>
+                    <span>${Math.round((window.currentStatusData?.rebalanceDelaySeconds || 3600) / 60)}m</span>
                     <button onclick="toggleSettingsModal()" class="text-gray-400 hover:text-white text-sm cursor-pointer">✏️</button>
                   </span>
                 </div>
@@ -1070,7 +1074,9 @@
           const w = data.walletAddress;
           document.getElementById('wallet-addr-short').textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
           document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
-          document.getElementById('wallet-bal-summary').textContent = `${(b.weth || 0).toFixed(4)} WETH · ${(b.eth || 0).toFixed(4)} ETH ($${walletTotal.toFixed(2)})`;
+          const usdcPart = (b.usdc || 0) > 0 ? `${(b.usdc || 0).toFixed(1)} USDC · ` : '';
+          const wethPart = `${(b.weth || 0).toFixed(4)} WETH`;
+          document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart} ($${walletTotal.toFixed(2)})`;
         }
 
         // Mode badge
