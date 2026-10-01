@@ -828,6 +828,7 @@ export class AerodromeService {
             functionName: 'earned',
             args: [this.account.address, BigInt(tokenId)]
           });
+          uncollectedAero = Number(formatUnits(earnedWei, 18));
           const aeroPrice = await this.getAeroPriceUsd();
           uncollectedFeesUsd = uncollectedAero * aeroPrice;
           apr = 183.3;
