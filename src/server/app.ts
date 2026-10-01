@@ -90,21 +90,6 @@ export function createServer(keeper: KeeperEngine) {
           : (posHarvestedAero * aeroPrice);
         const posTotalEarnedUsd = posCollectedUsd + amounts.uncollectedFeesUsd;
         const posCreatedAt = pos.createdAt || (Date.now() - 3600000);
-        const activeSec = Math.max(1, Math.floor((Date.now() - posCreatedAt) / 1000));
-        const activeDays = activeSec / 86400;
-
-        // Snuggle Exact Real Run-Rate (Total Earned / Active Days annualized)
-        let posApr = amounts.apr;
-        let posDailyProjectedUsd = (amounts.lpValueUsd * (amounts.apr / 100)) / 365;
-
-        if (activeSec >= 900 && posTotalEarnedUsd > 0 && amounts.lpValueUsd > 0) {
-          const runRateDaily = posTotalEarnedUsd / activeDays;
-          const runRateApr = (runRateDaily * 365 / amounts.lpValueUsd) * 100;
-          if (runRateApr >= 5 && runRateApr <= 1000) {
-            posApr = Number(runRateApr.toFixed(1));
-            posDailyProjectedUsd = runRateDaily;
-          }
-        }
 
         return {
           tokenId: pos.tokenId,
@@ -132,8 +117,8 @@ export function createServer(keeper: KeeperEngine) {
           collectedUsd: posCollectedUsd,
           totalEarnedUsd: posTotalEarnedUsd,
           isStakedInGauge: amounts.isStakedInGauge,
-          apr: posApr,
-          dailyProjectedUsd: posDailyProjectedUsd
+          apr: amounts.apr,
+          dailyProjectedUsd: (amounts.lpValueUsd * (amounts.apr / 100)) / 365
         };
       }));
 
@@ -148,10 +133,10 @@ export function createServer(keeper: KeeperEngine) {
       const totalEarnedUsd = totalCollectedUsd + totalUncollectedUsd;
       const totalRebalancesCount = positions.reduce((sum, p) => sum + (p.rebalancesCount || 0), 0);
 
-      const totalDailyProjectedUsd = positions.reduce((sum, p) => sum + (p.dailyProjectedUsd || 0), 0);
       const weightedApr = totalLpValue > 0
-        ? Number(((totalDailyProjectedUsd * 365 / totalLpValue) * 100).toFixed(1))
+        ? Number((positions.reduce((sum, p) => sum + (p.lpValue * p.apr), 0) / totalLpValue).toFixed(1))
         : 162.8;
+      const totalDailyProjectedUsd = (totalLpValue * (weightedApr / 100)) / 365;
 
       const primaryPos = positions[0] || {
         tokenId: null,
