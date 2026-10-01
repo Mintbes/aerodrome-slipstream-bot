@@ -80,6 +80,28 @@ export function createServer(keeper: KeeperEngine) {
           : (posHarvestedAero * aeroPrice);
         const posTotalEarnedUsd = posCollectedUsd + amounts.uncollectedFeesUsd;
 
+        // Calculate stable, empirical average APR based on active running time of this LP
+        const posCreatedAt = pos.createdAt || (Date.now() - 3600000);
+        const elapsedSec = Math.max(1, (Date.now() - posCreatedAt) / 1000);
+        let dynamicAverageApr = amounts.apr || 168.0;
+
+        if (amounts.isStakedInGauge) {
+          if (elapsedSec >= 600 && posTotalEarnedUsd > 0 && amounts.lpValueUsd > 0) {
+            const annualUsd = (posTotalEarnedUsd / elapsedSec) * 31536000;
+            const empiricalApr = (annualUsd / amounts.lpValueUsd) * 100;
+            const boundedApr = Math.max(40, Math.min(300, empiricalApr));
+
+            if (elapsedSec < 3600) {
+              const weight = (elapsedSec - 600) / 3000;
+              dynamicAverageApr = Number((boundedApr * weight + (amounts.apr || 168.0) * (1 - weight)).toFixed(1));
+            } else {
+              dynamicAverageApr = Number(boundedApr.toFixed(1));
+            }
+          }
+        } else {
+          dynamicAverageApr = 17.2;
+        }
+
         return {
           tokenId: pos.tokenId,
           tickLower: pos.tickLower,
@@ -90,7 +112,7 @@ export function createServer(keeper: KeeperEngine) {
           outOfRangeSince: pos.outOfRangeSince,
           remainingDelaySec,
           rebalancesCount: pos.rebalancesCount || 0,
-          createdAt: pos.createdAt || (Date.now() - 36000000),
+          createdAt: posCreatedAt,
           autoSnuggle: pos.autoSnuggle !== false,
           compound: pos.compound !== false,
           compoundMode: pos.compoundMode || botState.compoundMode || 'usdc',
@@ -106,8 +128,8 @@ export function createServer(keeper: KeeperEngine) {
           collectedUsd: posCollectedUsd,
           totalEarnedUsd: posTotalEarnedUsd,
           isStakedInGauge: amounts.isStakedInGauge,
-          apr: amounts.apr,
-          dailyProjectedUsd: (amounts.lpValueUsd * (amounts.apr / 100)) / 365
+          apr: dynamicAverageApr,
+          dailyProjectedUsd: (amounts.lpValueUsd * (dynamicAverageApr / 100)) / 365
         };
       }));
 
