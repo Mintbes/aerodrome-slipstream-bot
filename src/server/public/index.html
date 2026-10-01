@@ -477,14 +477,28 @@
     }
 
     function timeAgo(timestamp) {
-      if (!timestamp) return '1d';
-      const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+      if (!timestamp) return 'Reciente';
+      const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
       const days = Math.floor(diffSec / 86400);
       const hours = Math.floor((diffSec % 86400) / 3600);
-      if (days > 0) return `${days}d ${hours}h`;
-      if (hours > 0) return `${hours}h`;
       const mins = Math.floor((diffSec % 3600) / 60);
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${mins}m`;
       return `${mins}m`;
+    }
+
+    function formatDetailedActive(timestamp) {
+      if (!timestamp) return 'Reciente';
+      const diffSec = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+      const days = Math.floor(diffSec / 86400);
+      const hours = Math.floor((diffSec % 86400) / 3600);
+      const mins = Math.floor((diffSec % 3600) / 60);
+
+      const parts = [];
+      if (days > 0) parts.push(`${days}d`);
+      if (hours > 0 || days > 0) parts.push(`${hours}h`);
+      parts.push(`${mins}m`);
+      return parts.join(' ');
     }
 
     const formatMoney = (val) => {
@@ -603,7 +617,7 @@
                     WETH / USDC 
                     <span class="text-[11px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
                     <a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white font-mono text-xs md:text-sm">#${tokenId} ↗</a>
-                    <span class="text-xs text-gray-400 font-mono">· ${ageStr}</span>
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#1e293b] text-gray-300 border border-[#334155] font-mono flex items-center gap-1">⏱️ ${ageStr}</span>
                     ${gaugeBadge}
                   </h3>
                 </div>
@@ -618,6 +632,10 @@
                 <p class="${isExpanded ? 'text-xs' : 'text-[10px]'} text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
                 <h4 class="${isExpanded ? 'text-2xl md:text-3xl font-extrabold mt-1' : 'text-base md:text-lg font-bold mt-0.5'} text-white tracking-tight">$${lpVal.toFixed(2)}</h4>
                 <p class="${isExpanded ? 'text-xs mt-1' : 'text-[11px] mt-0.5'} text-gray-300 font-mono font-medium">${usdcInLp.toFixed(2)} USDC · ${wethInLp.toFixed(4)} WETH</p>
+                <p class="${isExpanded ? 'text-xs mt-1.5' : 'text-[10px] mt-0.5'} text-gray-400 font-mono flex items-center gap-1.5">
+                  <span class="text-gray-400">⏱️ Activo:</span>
+                  <span class="text-emerald-400 font-semibold">${ageStr}</span>
+                </p>
               </div>
 
               <div>
@@ -669,7 +687,7 @@
               </div>
 
               <!-- Configuration & Parameters Row -->
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#212f45] bg-[#111a2a]">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 border-b border-[#212f45] bg-[#111a2a]">
                 <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
                   <span class="text-sm font-medium text-gray-400">Range</span>
                   <span class="text-base md:text-lg font-black text-white font-mono flex items-center gap-1.5">
@@ -689,6 +707,11 @@
                 <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
                   <span class="text-sm font-medium text-gray-400">Rebalances</span>
                   <span class="text-base md:text-lg font-black text-white font-mono">${pos.rebalancesCount || 0}</span>
+                </div>
+
+                <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
+                  <span class="text-sm font-medium text-gray-400">Activo</span>
+                  <span class="text-base md:text-lg font-bold text-emerald-400 font-mono">${formatDetailedActive(pos.createdAt)}</span>
                 </div>
               </div>
 
