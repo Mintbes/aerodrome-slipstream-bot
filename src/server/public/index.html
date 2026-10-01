@@ -588,17 +588,17 @@
           <div id="card-pos-${tokenId}" class="bg-[#162238] border border-[#2b3d5b] rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
             
             <!-- Position Header (Exact Snuggle Style) -->
-            <div class="p-5 border-b border-[#212f45] flex flex-wrap items-center justify-between gap-4">
+            <div class="${isExpanded ? 'p-5' : 'py-3 px-5'} border-b border-[#212f45] flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center space-x-3">
                 <div class="flex -space-x-2 overflow-hidden">
-                  <span class="inline-block w-8 h-8 rounded-full bg-blue-500 border-2 border-[#162238] text-center text-sm leading-7">🔷</span>
-                  <span class="inline-block w-8 h-8 rounded-full bg-emerald-500 border-2 border-[#162238] text-center text-sm leading-7">💵</span>
+                  <span class="inline-block ${isExpanded ? 'w-8 h-8 text-sm leading-7' : 'w-7 h-7 text-xs leading-6'} rounded-full bg-blue-500 border-2 border-[#162238] text-center">🔷</span>
+                  <span class="inline-block ${isExpanded ? 'w-8 h-8 text-sm leading-7' : 'w-7 h-7 text-xs leading-6'} rounded-full bg-emerald-500 border-2 border-[#162238] text-center">💵</span>
                 </div>
                 <div>
-                  <h3 class="text-lg font-bold text-white flex flex-wrap items-center gap-2">
+                  <h3 class="${isExpanded ? 'text-lg' : 'text-sm md:text-base'} font-bold text-white flex flex-wrap items-center gap-2">
                     WETH / USDC 
-                    <span class="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
-                    <a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white font-mono text-sm">#${tokenId} ↗</a>
+                    <span class="text-[11px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
+                    <a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white font-mono text-xs md:text-sm">#${tokenId} ↗</a>
                     <span class="text-xs text-gray-400 font-mono">· ${ageStr}</span>
                     ${gaugeBadge}
                   </h3>
@@ -608,24 +608,24 @@
               ${statusBadgeHtml}
             </div>
 
-            <!-- Position Metrics 3-Column Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 ${isExpanded ? 'border-b border-[#212f45]' : ''}">
+            <!-- Position Metrics 3-Column Grid (Compact in Collapsed View) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 ${isExpanded ? 'gap-6 p-6 border-b border-[#212f45]' : 'gap-3 py-3 px-5'}">
               <div>
-                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
-                <h4 class="text-3xl lg:text-4xl font-black text-white mt-1 tracking-tight">$${lpVal.toFixed(2)}</h4>
-                <p class="text-sm text-gray-300 font-mono font-medium mt-1">${usdcInLp.toFixed(2)} USDC · ${wethInLp.toFixed(4)} WETH</p>
+                <p class="${isExpanded ? 'text-xs' : 'text-[10px]'} text-gray-400 font-semibold uppercase tracking-wider">Position Value</p>
+                <h4 class="${isExpanded ? 'text-2xl md:text-3xl font-extrabold mt-1' : 'text-base md:text-lg font-bold mt-0.5'} text-white tracking-tight">$${lpVal.toFixed(2)}</h4>
+                <p class="${isExpanded ? 'text-xs mt-1' : 'text-[11px] mt-0.5'} text-gray-300 font-mono font-medium">${usdcInLp.toFixed(2)} USDC · ${wethInLp.toFixed(4)} WETH</p>
               </div>
 
               <div>
-                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Earnings Rate</p>
-                <h4 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">${apy.toFixed(1)}%</h4>
-                <p class="text-base font-bold text-[#22c55e] font-mono mt-1">$${daily.toFixed(2)}/day</p>
+                <p class="${isExpanded ? 'text-xs' : 'text-[10px]'} text-gray-400 font-semibold uppercase tracking-wider">Earnings Rate</p>
+                <h4 class="${isExpanded ? 'text-2xl md:text-3xl font-extrabold mt-1' : 'text-base md:text-lg font-bold mt-0.5'} text-[#22c55e] tracking-tight">${apy.toFixed(1)}%</h4>
+                <p class="${isExpanded ? 'text-sm font-bold mt-1' : 'text-[11px] font-semibold mt-0.5'} text-[#22c55e] font-mono">$${daily.toFixed(2)}/day</p>
               </div>
 
               <div>
-                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
-                <h4 class="text-3xl lg:text-4xl font-black text-[#22c55e] mt-1 tracking-tight">$${totalEarned.toFixed(2)}</h4>
-                <div class="text-xs text-gray-300 font-mono font-medium mt-1.5 space-y-0.5">
+                <p class="${isExpanded ? 'text-xs' : 'text-[10px]'} text-gray-400 font-semibold uppercase tracking-wider">Total Earned</p>
+                <h4 class="${isExpanded ? 'text-2xl md:text-3xl font-extrabold mt-1' : 'text-base md:text-lg font-bold mt-0.5'} text-[#22c55e] tracking-tight">$${totalEarned.toFixed(2)}</h4>
+                <div class="${isExpanded ? 'text-xs mt-1 space-y-0.5' : 'text-[11px] mt-0.5 space-y-0'} text-gray-300 font-mono font-medium">
                   <p>├ $${collectedUsd.toFixed(2)} collected</p>
                   <p class="text-[#22c55e]">└ $${uncollectedUsd.toFixed(2)} uncollected${aeroStr}</p>
                 </div>
