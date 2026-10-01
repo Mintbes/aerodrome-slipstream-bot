@@ -530,7 +530,7 @@
         const lpVal = (typeof pos.lpValue === 'number' && pos.lpValue > 0) ? pos.lpValue : 403.84;
         const wethInLp = pos.wethAmount !== undefined ? pos.wethAmount : 0;
         const usdcInLp = pos.usdcAmount !== undefined ? pos.usdcAmount : 0;
-        const apy = pos.apr || 183.3;
+        const apy = pos.apr || 162.8;
         const daily = (lpVal * (apy / 100)) / 365;
 
         const collectedUsd = (typeof pos.collectedUsd === 'number') ? pos.collectedUsd : 0;
@@ -595,7 +595,7 @@
         }
 
         const gaugeBadge = pos.isStakedInGauge !== false
-          ? `<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold font-mono">⚡ Staked en Gauge (${(pos.apr || 183.3).toFixed(1)}% APR)</span>`
+          ? `<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold font-mono">⚡ Staked en Gauge (${(pos.apr || 162.8).toFixed(1)}% APR)</span>`
           : `<span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-bold font-mono">Wallet (Trading Fees)</span>`;
 
         const isExpanded = cardExpandedState[tokenId] !== undefined
@@ -1074,7 +1074,7 @@
         const totalEarned = (t.totalEarnedUsd !== undefined) ? t.totalEarnedUsd : (data.earnings?.totalEarnedUsd || 1.30);
         const totalUncollected = (t.totalUncollectedUsd !== undefined) ? t.totalUncollectedUsd : (data.earnings?.uncollectedUsd || 0);
 
-        const yieldApr = (t.portfolioYieldApr !== undefined) ? t.portfolioYieldApr : (data.apr || 183.3);
+        const yieldApr = (t.portfolioYieldApr !== undefined) ? t.portfolioYieldApr : (data.apr || 162.8);
         const dailyProjected = (t.dailyProjectedUsd !== undefined) ? t.dailyProjectedUsd : ((totalLpValue * (yieldApr / 100)) / 365);
 
         const activeCount = (t.activePositionsCount !== undefined) ? t.activePositionsCount : (data.positions?.length || 1);

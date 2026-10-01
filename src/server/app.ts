@@ -58,7 +58,7 @@ export function createServer(keeper: KeeperEngine) {
           uncollectedAero: 0,
           uncollectedFeesUsd: 0,
           isStakedInGauge: true,
-          apr: 183.3
+          apr: 162.8
         };
 
         if (pos.tokenId) {
@@ -124,7 +124,7 @@ export function createServer(keeper: KeeperEngine) {
 
       const weightedApr = totalLpValue > 0
         ? positions.reduce((sum, p) => sum + (p.lpValue * p.apr), 0) / totalLpValue
-        : 183.3;
+        : 162.8;
       const totalDailyProjectedUsd = (totalLpValue * (weightedApr / 100)) / 365;
 
       const primaryPos = positions[0] || {
