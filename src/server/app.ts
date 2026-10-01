@@ -135,7 +135,7 @@ export function createServer(keeper: KeeperEngine) {
 
       const weightedApr = totalLpValue > 0
         ? Number((positions.reduce((sum, p) => sum + (p.lpValue * p.apr), 0) / totalLpValue).toFixed(1))
-        : 162.8;
+        : 195.3;
       const totalDailyProjectedUsd = (totalLpValue * (weightedApr / 100)) / 365;
 
       const primaryPos = positions[0] || {

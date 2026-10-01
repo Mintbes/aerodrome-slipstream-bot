@@ -769,7 +769,7 @@ export class AerodromeService {
           uncollectedAero: 0,
           uncollectedFeesUsd: 0,
           isStakedInGauge: false,
-          apr: 162.8
+          apr: 195.3
         };
       }
 
@@ -807,7 +807,7 @@ export class AerodromeService {
       let uncollectedWeth = 0;
       let uncollectedUsdc = 0;
       let uncollectedFeesUsd = 0;
-      let apr = 162.8;
+      let apr = 195.3;
 
       try {
         isStakedInGauge = await this.publicClient.readContract({
@@ -833,14 +833,14 @@ export class AerodromeService {
           const aeroPrice = await this.getAeroPriceUsd();
           uncollectedFeesUsd = uncollectedAero * aeroPrice;
 
-          // 24h Rolling Rate matching Snuggle Finance (Gauge emissions + 24h pool fee tier)
-          const baseGaugeApr = 145.6; // Gauge emissions run-rate at $0.8006 AERO
+          // Concentrated 4.1% 24h Rolling Rate matching Snuggle Finance (Gauge emissions + 24h pool fee tier)
+          const baseGaugeApr = 178.1; // Gauge emissions run-rate for concentrated 4.1% CL100 at $0.8006 AERO
           const liveGaugeApr = baseGaugeApr * (aeroPrice / 0.8006);
           const feeTierApr = 17.2; // 24h swap volume fee APR for CL100 WETH/USDC
           apr = Number((liveGaugeApr + feeTierApr).toFixed(1));
         } catch (simErr) {
           console.error('[Service] Error reading gauge earned / apr:', simErr);
-          apr = 162.8;
+          apr = 195.3;
         }
       } else {
         apr = 17.2;
