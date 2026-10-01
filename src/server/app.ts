@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { KeeperEngine } from '../engine/keeper';
 import { config } from '../config';
+import { positionManagerAbi, gaugeAbi } from '../aerodrome/abis';
 
 export function createServer(keeper: KeeperEngine) {
   const app = express();
@@ -361,6 +362,76 @@ export function createServer(keeper: KeeperEngine) {
       }
     } catch (err: any) {
       keeper.getStorage().addLog('ERROR', `Fallo al reclamar AERO: ${err.message}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Import Existing Position endpoint
+  app.post('/api/import-position', async (req, res) => {
+    try {
+      const { tokenId, stakeNow } = req.body;
+      if (!tokenId) {
+        return res.status(400).json({ error: 'Token ID requerido' });
+      }
+
+      const tokenIdStr = String(tokenId).trim();
+      keeper.getStorage().addLog('INFO', `Importando posición de Aerodrome NFT #${tokenIdStr}...`);
+
+      const pos = await keeper.getService().publicClient.readContract({
+        address: config.contracts.positionManager,
+        abi: positionManagerAbi,
+        functionName: 'positions',
+        args: [BigInt(tokenIdStr)]
+      });
+
+      const tickLower = Number(pos[5]);
+      const tickUpper = Number(pos[6]);
+      const priceLower = (1.0001 ** tickLower) * 1e12;
+      const priceUpper = (1.0001 ** tickUpper) * 1e12;
+
+      // Auto-stake in Gauge if requested and not already staked
+      if (stakeNow !== false) {
+        try {
+          const isStaked = await keeper.getService().publicClient.readContract({
+            address: config.contracts.gauge,
+            abi: gaugeAbi,
+            functionName: 'stakedContains',
+            args: [keeper.getService().account.address, BigInt(tokenIdStr)]
+          });
+          if (!isStaked) {
+            keeper.getStorage().addLog('ACTION', `Stakeando NFT #${tokenIdStr} en Gauge de Aerodrome para activar recompensas...`);
+            await keeper.getService().stakePositionInGauge(tokenIdStr);
+          }
+        } catch (stkErr: any) {
+          console.error('[Import] Auto-stake warning:', stkErr);
+        }
+      }
+
+      const newPos = {
+        tokenId: tokenIdStr,
+        tickLower,
+        tickUpper,
+        priceLower,
+        priceUpper,
+        inRange: true,
+        outOfRangeSince: null,
+        rebalancesCount: 0,
+        createdAt: Date.now(),
+        autoSnuggle: true,
+        compound: true,
+        compoundMode: 'usdc' as const,
+        compoundThresholdUsd: 25
+      };
+
+      keeper.getStorage().addPosition(newPos);
+      keeper.getStorage().addLog(
+        'ACTION',
+        `✅ Posición #${tokenIdStr} vinculada al bot! Rango: $${priceLower.toFixed(2)} - $${priceUpper.toFixed(2)}`
+      );
+
+      res.json({ success: true, position: newPos });
+    } catch (err: any) {
+      keeper.getStorage().addLog('ERROR', `Error al importar posición: ${err.message}`);
       res.status(500).json({ error: err.message });
     }
   });

@@ -74,6 +74,9 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button onclick="openImportModal()" class="px-3.5 py-2 rounded-xl bg-[#1e293b] hover:bg-[#2d3e58] border border-[#374c6e] text-xs font-bold text-gray-200 hover:text-white shadow transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
+          <span>➕</span> Vincular NFT
+        </button>
         <button onclick="openCreateModal()" class="px-4 py-2 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs md:text-sm shadow-lg transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
           <span class="text-base font-black leading-none">+</span> New Position
         </button>
@@ -374,6 +377,49 @@
             Guardar Cambios
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Vincular / Importar NFT de Aerodrome -->
+  <div id="import-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#141f33] border border-[#2b3d5b] rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#212f45] pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <span>➕</span> Vincular Posición de Aerodrome
+        </h3>
+        <button onclick="closeImportModal()" class="text-gray-400 hover:text-white text-lg cursor-pointer">✕</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+            Token ID del NFT (#):
+          </label>
+          <input id="input-import-tokenid" type="number" placeholder="Ej: 77296712" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-3 text-lg text-white font-mono font-bold focus:outline-none focus:border-emerald-500">
+          <p class="text-[11px] text-gray-400 mt-1">Introduce el número de NFT generado al crear el pool en Aerodrome.</p>
+        </div>
+
+        <div class="flex items-center justify-between p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363]">
+          <div>
+            <p class="font-semibold text-white text-xs">Stakear en Gauge Automáticamente</p>
+            <p class="text-[10px] text-gray-400">Activa las emisiones de ~183% APR en token AERO.</p>
+          </div>
+          <input id="input-import-stake" type="checkbox" checked class="w-5 h-5 accent-emerald-400 cursor-pointer">
+        </div>
+
+        <div id="import-progress-box" class="hidden p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono space-y-1">
+          <p id="import-progress-text"></p>
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t border-[#212f45]">
+        <button onclick="closeImportModal()" id="btn-cancel-import" class="px-4 py-2.5 rounded-xl bg-[#1c2b45] hover:bg-[#253756] text-xs font-semibold text-gray-300 cursor-pointer">
+          Cancelar
+        </button>
+        <button onclick="executeImportPosition()" id="btn-submit-import" class="px-5 py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-lg transition active:scale-98 cursor-pointer flex items-center gap-1.5">
+          <span>🔗</span> Vincular Posición
+        </button>
       </div>
     </div>
   </div>
@@ -1198,6 +1244,71 @@
         btnSubmit.disabled = false;
         btnCancel.disabled = false;
         btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+
+    function openImportModal() {
+      const modal = document.getElementById('import-modal');
+      modal.classList.remove('hidden');
+      const input = document.getElementById('input-import-tokenid');
+      if (input) input.focus();
+    }
+
+    function closeImportModal() {
+      const modal = document.getElementById('import-modal');
+      modal.classList.add('hidden');
+    }
+
+    async function executeImportPosition() {
+      const input = document.getElementById('input-import-tokenid');
+      const tokenId = input?.value?.trim();
+      if (!tokenId) {
+        alert('Por favor introduce el número de Token ID del NFT.');
+        return;
+      }
+
+      const stakeNow = document.getElementById('input-import-stake')?.checked ?? true;
+      const btnSubmit = document.getElementById('btn-submit-import');
+      const btnCancel = document.getElementById('btn-cancel-import');
+      const progressBox = document.getElementById('import-progress-box');
+      const progressText = document.getElementById('import-progress-text');
+
+      btnSubmit.disabled = true;
+      btnCancel.disabled = true;
+      progressBox.classList.remove('hidden');
+      progressBox.className = 'p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono space-y-1';
+      progressText.innerHTML = '<span class="animate-spin inline-block mr-1.5">⏳</span> Leyendo datos on-chain y vinculando al bot...';
+
+      try {
+        const res = await fetch('/api/import-position', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId, stakeNow })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          progressBox.className = 'p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono space-y-1';
+          progressText.innerHTML = `🎉 <b>¡Éxito! Posición #${tokenId} vinculada correctamente.</b>`;
+          await updateDashboard();
+          setTimeout(() => {
+            closeImportModal();
+            btnSubmit.disabled = false;
+            btnCancel.disabled = false;
+            progressBox.classList.add('hidden');
+            if (input) input.value = '';
+          }, 2000);
+        } else {
+          progressBox.className = 'p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono space-y-1';
+          progressText.innerHTML = `❌ Error: ${result.error || 'No se pudo vincular la posición'}`;
+          btnSubmit.disabled = false;
+          btnCancel.disabled = false;
+        }
+      } catch (err) {
+        progressBox.className = 'p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono space-y-1';
+        progressText.innerHTML = `❌ Error de red: ${err.message}`;
+        btnSubmit.disabled = false;
+        btnCancel.disabled = false;
       }
     }
 
