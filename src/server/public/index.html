@@ -1212,7 +1212,7 @@
       if (wallets && wallets.length > 0) {
         wallets.forEach(w => {
           const isSelected = selectedWalletFilter.toLowerCase() === w.address.toLowerCase();
-          const usdcBal = w.balances?.usdc !== undefined ? w.balances.usdc : 0;
+          const totalVal = (typeof w.totalWalletUsd === 'number') ? w.totalWalletUsd : 0;
           const shortAddr = `${w.address.slice(0, 6)}...${w.address.slice(-4)}`;
           html += `
             <button onclick="setWalletFilter('${w.address}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
@@ -1225,7 +1225,7 @@
               <span class="font-mono text-[11px] opacity-80">(${shortAddr})</span>
               <span class="text-[10px] px-1.5 py-0.5 rounded font-mono ${
                 isSelected ? 'bg-black/20 text-black font-bold' : 'bg-emerald-500/10 text-emerald-400'
-              }">$${usdcBal.toFixed(0)}</span>
+              }">$${totalVal.toFixed(2)}</span>
             </button>
           `;
         });
@@ -1247,9 +1247,10 @@
       if (selectCreate && wallets && wallets.length > 0) {
         const prevVal = selectCreate.value;
         selectCreate.innerHTML = wallets.map(w => {
-          const usdcBal = (w.balances?.usdc || 0).toFixed(2);
+          const usdcBal = ((w.balances?.usdc !== undefined ? w.balances.usdc : w.usdcBalance) || 0).toFixed(2);
+          const totalVal = (typeof w.totalWalletUsd === 'number') ? w.totalWalletUsd.toFixed(2) : usdcBal;
           const shortAddr = `${w.address.slice(0, 6)}...${w.address.slice(-4)}`;
-          return `<option value="${w.address}">${w.name} (${shortAddr}) · Saldo: $${usdcBal} USDC</option>`;
+          return `<option value="${w.address}">${w.name} (${shortAddr}) · Saldo: $${usdcBal} USDC (Total: $${totalVal})</option>`;
         }).join('');
         if (prevVal && wallets.some(w => w.address.toLowerCase() === prevVal.toLowerCase())) {
           selectCreate.value = prevVal;
@@ -1281,7 +1282,7 @@
 
       if (wallet) {
         if (addrEl) addrEl.textContent = `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)} (${wallet.name})`;
-        const bal = wallet.balances?.usdc || 0;
+        const bal = (wallet.balances?.usdc !== undefined ? wallet.balances.usdc : wallet.usdcBalance) || 0;
         currentWalletUsdc = bal;
         if (balEl) balEl.textContent = `${bal.toFixed(2)} USDC`;
       }
@@ -1403,8 +1404,16 @@
         walletTotal = t.walletTotalUsd !== undefined ? t.walletTotalUsd : 0;
       } else {
         const w = loadedWallets.find(x => x.address.toLowerCase() === selectedWalletFilter.toLowerCase());
-        if (w && w.balances) {
-          walletTotal = (w.balances.usdc || 0) + ((w.balances.weth || 0) + (w.balances.eth || 0)) * price + (w.balances.aero || 0) * (t.aeroPriceUsd || 0.65);
+        if (w) {
+          if (typeof w.totalWalletUsd === 'number') {
+            walletTotal = w.totalWalletUsd;
+          } else {
+            const u = w.balances?.usdc ?? w.usdcBalance ?? 0;
+            const eth = w.balances?.eth ?? w.ethBalance ?? 0;
+            const weth = w.balances?.weth ?? w.wethBalance ?? 0;
+            const aero = w.balances?.aero ?? w.aeroBalance ?? 0;
+            walletTotal = u + (eth + weth) * price + aero * (t.aeroPriceUsd || 0.80);
+          }
         }
       }
       const totalPortfolio = totalLpValue + walletTotal;
@@ -1426,9 +1435,13 @@
         if (w) {
           document.getElementById('wallet-addr-short').textContent = `${w.name} (${w.address.slice(0, 6)}...${w.address.slice(-4)})`;
           document.getElementById('wallet-link').href = `https://basescan.org/address/${w.address}`;
-          const usdcPart = (w.balances?.usdc || 0) > 0 ? `${(w.balances?.usdc || 0).toFixed(1)} USDC · ` : '';
-          const wethPart = `${(w.balances?.weth || 0).toFixed(4)} WETH`;
-          document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart} ($${walletTotal.toFixed(2)})`;
+          const u = w.balances?.usdc ?? w.usdcBalance ?? 0;
+          const weth = w.balances?.weth ?? w.wethBalance ?? 0;
+          const aero = w.balances?.aero ?? w.aeroBalance ?? 0;
+          const usdcPart = u > 0 ? `${u.toFixed(1)} USDC · ` : '';
+          const wethPart = weth > 0 ? `${weth.toFixed(4)} WETH · ` : '';
+          const aeroPart = aero > 0 ? `${aero.toFixed(1)} AERO` : '';
+          document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart}${aeroPart} ($${walletTotal.toFixed(2)})`;
         }
       } else if (data.walletAddress) {
         const w = data.walletAddress;
@@ -1436,8 +1449,9 @@
         document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
         const b = data.pool?.balances || {};
         const usdcPart = (b.usdc || 0) > 0 ? `${(b.usdc || 0).toFixed(1)} USDC · ` : '';
-        const wethPart = `${(b.weth || 0).toFixed(4)} WETH`;
-        document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart} ($${walletTotal.toFixed(2)})`;
+        const wethPart = (b.weth || 0) > 0 ? `${(b.weth || 0).toFixed(4)} WETH · ` : '';
+        const aeroPart = (b.aero || 0) > 0 ? `${(b.aero || 0).toFixed(1)} AERO` : '';
+        document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart}${aeroPart} ($${walletTotal.toFixed(2)})`;
       }
 
       renderPositions(filteredPositions, price);

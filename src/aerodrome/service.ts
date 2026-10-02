@@ -218,9 +218,23 @@ export class AerodromeService {
     wethBalance: number;
     usdcBalance: number;
     aeroBalance: number;
+    balances: {
+      eth: number;
+      weth: number;
+      usdc: number;
+      aero: number;
+    };
     totalWalletUsd: number;
   }>> {
-    const aeroPrice = await this.getAeroPriceUsd();
+    const [aeroPrice, slot0] = await Promise.all([
+      this.getAeroPriceUsd().catch(() => 0.8),
+      this.publicClient.readContract({
+        address: config.contracts.pool,
+        abi: poolAbi,
+        functionName: 'slot0'
+      }).catch(() => null)
+    ]);
+    const ethPrice = slot0 ? sqrtPriceX96ToPrice((slot0 as any)[0]) : 2750;
     const results = [];
 
     for (const [_, entry] of this.wallets.entries()) {
@@ -237,7 +251,7 @@ export class AerodromeService {
         const wethBal = Number(formatUnits(wethWei, 18));
         const usdcBal = Number(formatUnits(usdcWei, 6));
         const aeroBal = Number(formatUnits(aeroWei, 18));
-        const totalUsd = usdcBal + (aeroBal * aeroPrice) + (ethBal * 2750);
+        const totalUsd = usdcBal + (aeroBal * aeroPrice) + ((ethBal + wethBal) * ethPrice);
 
         results.push({
           id: entry.id,
@@ -247,6 +261,12 @@ export class AerodromeService {
           wethBalance: wethBal,
           usdcBalance: usdcBal,
           aeroBalance: aeroBal,
+          balances: {
+            eth: ethBal,
+            weth: wethBal,
+            usdc: usdcBal,
+            aero: aeroBal
+          },
           totalWalletUsd: totalUsd
         });
       } catch (err) {
@@ -263,6 +283,12 @@ export class AerodromeService {
         wethBalance: 0,
         usdcBalance: 0,
         aeroBalance: 0,
+        balances: {
+          eth: 0,
+          weth: 0,
+          usdc: 0,
+          aero: 0
+        },
         totalWalletUsd: 0
       });
     }
