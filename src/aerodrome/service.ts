@@ -881,31 +881,40 @@ export class AerodromeService {
       console.log(`[Service] Staking NFT #${tokenId} into Gauge ${config.contracts.gauge}...`);
       const tokenIdBigInt = BigInt(tokenId);
 
-      const approved = await this.publicClient.readContract({
+      const isApprovedForAll = await this.publicClient.readContract({
         address: config.contracts.positionManager,
         abi: positionManagerAbi,
-        functionName: 'getApproved',
-        args: [tokenIdBigInt]
-      });
+        functionName: 'isApprovedForAll',
+        args: [this.account.address, config.contracts.gauge]
+      }).catch(() => false);
 
-      if (approved.toLowerCase() !== config.contracts.gauge.toLowerCase()) {
-        console.log(`[Service] Approving NFT #${tokenId} to Gauge...`);
-        const approveTx = await this.walletClient.writeContract({
+      if (!isApprovedForAll) {
+        const approved = await this.publicClient.readContract({
           address: config.contracts.positionManager,
           abi: positionManagerAbi,
-          functionName: 'approve',
-          gas: 100000n,
-          args: [config.contracts.gauge, tokenIdBigInt]
+          functionName: 'getApproved',
+          args: [tokenIdBigInt]
         });
-        await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
-        await new Promise(r => setTimeout(r, 2000));
+
+        if (approved.toLowerCase() !== config.contracts.gauge.toLowerCase()) {
+          console.log(`[Service] Approving NFT #${tokenId} to Gauge...`);
+          const approveTx = await this.walletClient.writeContract({
+            address: config.contracts.positionManager,
+            abi: positionManagerAbi,
+            functionName: 'approve',
+            gas: 100000n,
+            args: [config.contracts.gauge, tokenIdBigInt]
+          });
+          await this.publicClient.waitForTransactionReceipt({ hash: approveTx });
+          await new Promise(r => setTimeout(r, 2000));
+        }
       }
 
       const depositTx = await this.walletClient.writeContract({
         address: config.contracts.gauge,
         abi: gaugeAbi,
         functionName: 'deposit',
-        gas: 700000n,
+        gas: 800000n,
         args: [tokenIdBigInt]
       });
 

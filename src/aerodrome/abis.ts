@@ -30,6 +30,7 @@ export const positionManagerAbi = parseAbi([
   'function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256)',
   'function approve(address to, uint256 tokenId) external',
   'function setApprovalForAll(address operator, bool approved) external',
+  'function isApprovedForAll(address owner, address operator) external view returns (bool)',
   'function getApproved(uint256 tokenId) external view returns (address)'
 ]);
 
