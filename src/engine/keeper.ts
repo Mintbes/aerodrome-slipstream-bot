@@ -154,10 +154,24 @@ export class KeeperEngine {
 
               this.storage.addLog('ACTION', `Delay timer expired for #${pos.tokenId}. Triggering automated Zero-Swap rebalance (${dir})...`);
 
-              const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
+              const isCompoundEnabled = pos.compound !== false && botState.compound !== false;
+              const mode = pos.compoundMode || botState.compoundMode || 'usdc';
+              const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
+
+              const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode);
               if (res.success) {
                 const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
                 const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
+
+                if (res.reinvestedAero && res.reinvestedAero > 0) {
+                  this.storage.updatePosition(pos.tokenId, p => {
+                    p.harvestedAero = (p.harvestedAero || 0) + res.reinvestedAero!;
+                    p.collectedUsd = (p.collectedUsd || 0) + (res.reinvestedUsdc || 0);
+                  });
+                  this.storage.updateState(s => {
+                    s.totalHarvestedAero = (s.totalHarvestedAero || 0) + res.reinvestedAero!;
+                  });
+                }
 
                 this.storage.updatePosition(pos.tokenId, p => {
                   p.tokenId = res.newTokenId || p.tokenId;
@@ -183,7 +197,10 @@ export class KeeperEngine {
                   });
                 });
 
-                this.storage.addLog('ACTION', `🚀 Rebalance completed for #${pos.tokenId}! New NFT: #${res.newTokenId || pos.tokenId}. Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)}`);
+                const compoundMsg = (res.reinvestedUsdc && res.reinvestedUsdc > 0)
+                  ? ` (🔄 Auto-Compound: +$${res.reinvestedUsdc.toFixed(2)} USDC de AERO reinvertidos en la posición LP!)`
+                  : '';
+                this.storage.addLog('ACTION', `🚀 Rebalance completed for #${pos.tokenId}! New NFT: #${res.newTokenId || pos.tokenId}. Range: $${newRange[0].toFixed(2)} - $${newRange[1].toFixed(2)}${compoundMsg}`);
               } else {
                 this.storage.addLog('ERROR', `Rebalance failed for #${pos.tokenId}: ${res.error}`);
               }
@@ -263,13 +280,27 @@ export class KeeperEngine {
     const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
 
     this.storage.addLog('ACTION', `User triggered manual Zero-Swap rebalance for NFT #${pos.tokenId} (${dir})...`);
-    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
+    const isCompoundEnabled = pos.compound !== false && botState.compound !== false;
+    const mode = pos.compoundMode || botState.compoundMode || 'usdc';
+    const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
+
+    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode);
 
     if (res.success) {
       const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
       const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
       if (pos.tokenId) {
+        if (res.reinvestedAero && res.reinvestedAero > 0) {
+          this.storage.updatePosition(pos.tokenId, p => {
+            p.harvestedAero = (p.harvestedAero || 0) + res.reinvestedAero!;
+            p.collectedUsd = (p.collectedUsd || 0) + (res.reinvestedUsdc || 0);
+          });
+          this.storage.updateState(s => {
+            s.totalHarvestedAero = (s.totalHarvestedAero || 0) + res.reinvestedAero!;
+          });
+        }
+
         this.storage.updatePosition(pos.tokenId, p => {
           p.tokenId = res.newTokenId || p.tokenId;
           p.tickLower = res.newRange.tickLower;

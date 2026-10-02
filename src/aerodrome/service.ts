@@ -167,11 +167,14 @@ export class AerodromeService {
   async executeZeroSwapRebalance(
     currentTick: number,
     exitDirection: 'UP' | 'DOWN',
-    activeTokenId: string | null
+    activeTokenId: string | null,
+    reinvestAero: boolean = false
   ): Promise<{
     success: boolean;
     newRange: ReturnType<typeof calculateZeroSwapUsdcRange>;
     newTokenId?: string;
+    reinvestedAero?: number;
+    reinvestedUsdc?: number;
     txHash?: string;
     error?: string;
   }> {
@@ -287,6 +290,35 @@ export class AerodromeService {
         } catch (closeErr: any) {
           console.error(`[Service] Error closing old position:`, closeErr);
           throw closeErr;
+        }
+      }
+
+      let reinvestedAero = 0;
+      let reinvestedUsdc = 0;
+
+      // Auto-Compound: If exiting UP and reinvestAero is enabled, convert accumulated AERO to USDC to reinvest into the new LP!
+      if (exitDirection === 'UP' && reinvestAero) {
+        try {
+          const aeroBal = await this.publicClient.readContract({
+            address: config.contracts.aero,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [accountAddress]
+          });
+
+          // Swap if AERO balance > 0.5 AERO (~$0.40)
+          if (aeroBal > 500000000000000000n) {
+            console.log(`[Service] 🔄 Auto-Compound: Swapping ${formatUnits(aeroBal, 18)} AERO to USDC to reinvest into the new LP range...`);
+            const swapRes = await this.swapAeroToUsdc(aeroBal);
+            if (swapRes.success && swapRes.usdcReceived) {
+              reinvestedAero = Number(formatUnits(aeroBal, 18));
+              reinvestedUsdc = swapRes.usdcReceived;
+              console.log(`[Service] ✅ Auto-Compound: Successfully swapped ${reinvestedAero.toFixed(4)} AERO into +$${reinvestedUsdc.toFixed(2)} USDC for the new LP!`);
+              await new Promise(r => setTimeout(r, 1500));
+            }
+          }
+        } catch (aeroSwapErr: any) {
+          console.warn(`[Service] Auto-Compound AERO swap note:`, aeroSwapErr.message);
         }
       }
 
@@ -434,6 +466,8 @@ export class AerodromeService {
         success: true,
         newRange,
         newTokenId,
+        reinvestedAero,
+        reinvestedUsdc,
         txHash: mintTx
       };
     } catch (err: any) {
