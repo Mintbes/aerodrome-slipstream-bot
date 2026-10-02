@@ -20,10 +20,17 @@ export interface PositionItem {
   harvestedAero?: number;
   collectedUsd?: number;
   upOnlyRebalance?: boolean;
+  walletAddress?: string;
+  walletName?: string;
 }
 
 export interface BotState {
   positions: PositionItem[];
+  wallets?: Array<{
+    id: string;
+    name: string;
+    address: string;
+  }>;
   activePosition: {
     tokenId: string | null;
     tickLower: number;

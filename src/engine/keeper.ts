@@ -76,7 +76,7 @@ export class KeeperEngine {
         // Watchdog: Ensure active position is always Staked in Aerodrome Gauge
         if (pos.tokenId && !config.dryRun) {
           try {
-            const isStaked = await this.service.isPositionStakedInGauge(pos.tokenId);
+            const isStaked = await this.service.isPositionStakedInGauge(pos.tokenId, pos.walletAddress);
             if (!isStaked) {
               const now = Date.now();
               const lastStakeAttempt = (pos as any).lastStakeAttempt || 0;
@@ -86,7 +86,7 @@ export class KeeperEngine {
                   'ACTION',
                   `🛡️ Watchdog: Posición #${pos.tokenId} detectada en Wallet (sin stakear). Stakeando automáticamente en Gauge de Aerodrome...`
                 );
-                const stakeRes = await this.service.stakePositionInGauge(pos.tokenId);
+                const stakeRes = await this.service.stakePositionInGauge(pos.tokenId, pos.walletAddress);
                 if (stakeRes.success) {
                   this.storage.addLog('ACTION', `✅ ¡Posición #${pos.tokenId} auto-stakeada con éxito en Gauge! Tx: ${stakeRes.txHash?.slice(0, 10)}...`);
                 } else {
@@ -158,7 +158,7 @@ export class KeeperEngine {
               const mode = pos.compoundMode || botState.compoundMode || 'usdc';
               const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
 
-              const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode);
+              const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress);
               if (res.success) {
                 const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
                 const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
@@ -175,6 +175,7 @@ export class KeeperEngine {
 
                 this.storage.updatePosition(pos.tokenId, p => {
                   p.tokenId = res.newTokenId || p.tokenId;
+                  if (res.walletAddress) p.walletAddress = res.walletAddress;
                   p.tickLower = res.newRange.tickLower;
                   p.tickUpper = res.newRange.tickUpper;
                   p.priceLower = res.newRange.priceLower;
@@ -215,7 +216,7 @@ export class KeeperEngine {
           const threshold = pos.compoundThresholdUsd || botState.compoundThresholdUsd || 25;
 
           try {
-            const amounts = await this.service.getPositionAmounts(pos.tokenId, state.currentPrice);
+            const amounts = await this.service.getPositionAmounts(pos.tokenId, state.currentPrice, pos.walletAddress);
             const pendingUsd = amounts.uncollectedFeesUsd || 0;
 
             if (pendingUsd >= threshold) {
@@ -223,7 +224,7 @@ export class KeeperEngine {
                 'ACTION',
                 `🎯 Umbral de cosecha alcanzado para #${pos.tokenId}: $${pendingUsd.toFixed(2)} acumulados >= umbral $${threshold}. Ejecutando Auto-Compound (${mode === 'usdc' ? '💵 Cosecha a USDC' : '🔄 Reinversión LP'})...`
               );
-              const compRes = await this.service.executeCompound(pos.tokenId, mode);
+              const compRes = await this.service.executeCompound(pos.tokenId, mode, pos.walletAddress);
               const claimedAero = compRes.claimedAero || 0;
               if (claimedAero > 0) {
                 const aeroPrice = await this.service.getAeroPriceUsd();
@@ -284,7 +285,7 @@ export class KeeperEngine {
     const mode = pos.compoundMode || botState.compoundMode || 'usdc';
     const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
 
-    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode);
+    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress);
 
     if (res.success) {
       const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
@@ -303,6 +304,7 @@ export class KeeperEngine {
 
         this.storage.updatePosition(pos.tokenId, p => {
           p.tokenId = res.newTokenId || p.tokenId;
+          if (res.walletAddress) p.walletAddress = res.walletAddress;
           p.tickLower = res.newRange.tickLower;
           p.tickUpper = res.newRange.tickUpper;
           p.priceLower = res.newRange.priceLower;
@@ -357,7 +359,7 @@ export class KeeperEngine {
     const mode = overrideMode || pos.compoundMode || botState.compoundMode || 'usdc';
     this.storage.addLog('ACTION', `Iniciando compound manual (${mode === 'usdc' ? '💵 Cosecha a USDC' : '🔄 Reinversión LP'}) para #${pos.tokenId}...`);
 
-    const res = await this.service.executeCompound(pos.tokenId, mode);
+    const res = await this.service.executeCompound(pos.tokenId, mode, pos.walletAddress);
     if (res.success) {
       const claimedAero = res.claimedAero || 0;
       const aeroPrice = await this.service.getAeroPriceUsd();

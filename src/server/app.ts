@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { KeeperEngine } from '../engine/keeper';
+import { PositionItem } from '../engine/storage';
 import { config } from '../config';
 import { positionManagerAbi, gaugeAbi } from '../aerodrome/abis';
 
@@ -35,8 +36,9 @@ export function createServer(keeper: KeeperEngine) {
       const botState = keeper.getStorage().getState();
       const poolState = keeper.lastPoolState || await keeper.getService().getPoolState();
       const currentPrice = poolState.currentPrice;
+      const wallets = await keeper.getService().getAllWalletBalances();
 
-      const rawPositions = (botState.positions && botState.positions.length > 0)
+      const rawPositions: PositionItem[] = (botState.positions && botState.positions.length > 0)
         ? botState.positions
         : (botState.activePosition?.tokenId ? [{
             tokenId: botState.activePosition.tokenId,
@@ -49,7 +51,14 @@ export function createServer(keeper: KeeperEngine) {
             rebalancesCount: botState.rebalancesCount ?? 0,
             createdAt: Date.now() - 36000000,
             autoSnuggle: botState.autoSnuggle,
-            compound: botState.compound
+            compound: botState.compound,
+            upOnlyRebalance: botState.upOnlyRebalance,
+            compoundMode: botState.compoundMode || 'usdc',
+            compoundThresholdUsd: botState.compoundThresholdUsd || 25,
+            harvestedAero: 0,
+            collectedUsd: 0,
+            walletAddress: keeper.getService().account.address,
+            walletName: 'Cartera Satélite 1'
           }] : []);
 
       const positions = await Promise.all(rawPositions.map(async (pos) => {
@@ -58,6 +67,16 @@ export function createServer(keeper: KeeperEngine) {
           const elapsedSec = Math.floor((Date.now() - pos.outOfRangeSince) / 1000);
           remainingDelaySec = Math.max(0, config.rebalanceDelaySeconds - elapsedSec);
         }
+
+        // Determine wallet info for pos if missing
+        let posWallet = pos.walletAddress ? keeper.getService().getWalletFor(pos.walletAddress) : null;
+        if (!posWallet && pos.tokenId) {
+          posWallet = await keeper.getService().findWalletForTokenId(pos.tokenId);
+          pos.walletAddress = posWallet.address;
+          pos.walletName = posWallet.name;
+        }
+        const walletAddress = pos.walletAddress || keeper.getService().account.address;
+        const walletName = pos.walletName || keeper.getService().getWalletFor(walletAddress).name;
 
         let amounts = {
           wethAmount: 0,
@@ -73,7 +92,7 @@ export function createServer(keeper: KeeperEngine) {
 
         if (pos.tokenId) {
           try {
-            amounts = await keeper.getService().getPositionAmounts(pos.tokenId, currentPrice);
+            amounts = await keeper.getService().getPositionAmounts(pos.tokenId, currentPrice, walletAddress);
           } catch (e) {
             console.error(`Error reading position #${pos.tokenId}:`, e);
           }
@@ -93,6 +112,8 @@ export function createServer(keeper: KeeperEngine) {
 
         return {
           tokenId: pos.tokenId,
+          walletAddress,
+          walletName,
           tickLower: pos.tickLower,
           tickUpper: pos.tickUpper,
           priceLower: pos.priceLower,
@@ -183,6 +204,7 @@ export function createServer(keeper: KeeperEngine) {
           activePositionsCount: positions.length,
           totalRebalances: totalRebalancesCount
         },
+        wallets,
         positions,
         position: primaryPos,
         earnings: {
@@ -307,25 +329,82 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
+  // List all configured wallets with live balances
+  app.get('/api/wallets', async (req, res) => {
+    try {
+      const wallets = await keeper.getService().getAllWalletBalances();
+      res.json({ success: true, wallets });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Add a new wallet dynamically to the bot
+  app.post('/api/wallets', async (req, res) => {
+    try {
+      const { name, privateKey } = req.body || {};
+      if (!privateKey) {
+        return res.status(400).json({ error: 'Clave privada requerida' });
+      }
+
+      const regRes = keeper.getService().registerWallet(name, privateKey);
+      if (!regRes.success || !regRes.address) {
+        return res.status(400).json({ error: regRes.error || 'Clave privada inválida' });
+      }
+
+      keeper.getStorage().updateState(s => {
+        if (!s.wallets) s.wallets = [];
+        if (!s.wallets.some(w => w.address.toLowerCase() === regRes.address!.toLowerCase())) {
+          s.wallets.push({
+            id: regRes.id!,
+            name: name || `Cartera ${s.wallets.length + 1}`,
+            address: regRes.address!
+          });
+        }
+      });
+
+      keeper.getStorage().addLog(
+        'ACTION',
+        `💼 Nueva Cartera vinculada al bot: "${name || 'Cartera'}" (${regRes.address.slice(0, 6)}...${regRes.address.slice(-4)})`
+      );
+
+      res.json({
+        success: true,
+        wallet: {
+          id: regRes.id,
+          name: name || `Cartera`,
+          address: regRes.address
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Create 50/50 Centered Position endpoint
   app.post('/api/create-5050', async (req, res) => {
     try {
       const amountUsdc = parseFloat(req.body.amount || '500');
-      keeper.getStorage().addLog('INFO', `Iniciando creación automática de LP 50/50 (${amountUsdc} USDC)...`);
+      const targetWallet = req.body.walletAddress;
+      const walletInfo = keeper.getService().getWalletFor(targetWallet);
 
-      const result = await keeper.getService().createCentered5050Position(amountUsdc);
+      keeper.getStorage().addLog('INFO', `Iniciando creación automática de LP 50/50 (${amountUsdc} USDC) en ${walletInfo.name}...`);
+
+      const result = await keeper.getService().createCentered5050Position(amountUsdc, targetWallet);
       if (result.success && result.tokenId) {
         config.dryRun = false; // Switch to live on-chain!
 
         // Stake newly created position in gauge automatically
         try {
-          await keeper.getService().stakePositionInGauge(result.tokenId);
+          await keeper.getService().stakePositionInGauge(result.tokenId, result.walletAddress || walletInfo.address);
         } catch (gaugeErr) {
           console.error('[API] Gauge auto-stake notice:', gaugeErr);
         }
 
         keeper.getStorage().addPosition({
           tokenId: result.tokenId,
+          walletAddress: result.walletAddress || walletInfo.address,
+          walletName: walletInfo.name,
           tickLower: result.tickLower,
           tickUpper: result.tickUpper,
           priceLower: result.priceLower,
@@ -340,7 +419,7 @@ export function createServer(keeper: KeeperEngine) {
 
         keeper.getStorage().addLog(
           'ACTION',
-          `🚀 Posición 50/50 (#${result.tokenId}) creada y staked en Gauge! Rango: $${result.priceLower.toFixed(2)} - $${result.priceUpper.toFixed(2)}. Swap Tx: ${result.swapTx?.slice(0, 10)}... | Mint Tx: ${result.mintTx?.slice(0, 10)}...`
+          `🚀 Posición 50/50 (#${result.tokenId}) creada para ${walletInfo.name} y staked en Gauge! Rango: $${result.priceLower.toFixed(2)} - $${result.priceUpper.toFixed(2)}.`
         );
 
         res.json(result);
@@ -383,8 +462,11 @@ export function createServer(keeper: KeeperEngine) {
         return res.status(400).json({ error: 'No hay posición activa para reclamar' });
       }
 
+      const targetPos = botState.positions?.find(p => p.tokenId === tokenId);
+      const walletAddress = targetPos?.walletAddress;
+
       keeper.getStorage().addLog('ACTION', `Iniciando reclamo de recompensas AERO del Gauge para NFT #${tokenId}...`);
-      const result = await keeper.getService().claimAeroRewards(tokenId);
+      const result = await keeper.getService().claimAeroRewards(tokenId, walletAddress);
 
       if (result.success) {
         const claimedAero = result.claimedAero || 0;
@@ -411,13 +493,17 @@ export function createServer(keeper: KeeperEngine) {
   // Import Existing Position endpoint
   app.post('/api/import-position', async (req, res) => {
     try {
-      const { tokenId, stakeNow } = req.body;
+      const { tokenId, stakeNow, walletAddress: reqWallet } = req.body;
       if (!tokenId) {
         return res.status(400).json({ error: 'Token ID requerido' });
       }
 
       const tokenIdStr = String(tokenId).trim();
       keeper.getStorage().addLog('INFO', `Importando posición de Aerodrome NFT #${tokenIdStr}...`);
+
+      const detectedWallet = reqWallet
+        ? keeper.getService().getWalletFor(reqWallet)
+        : await keeper.getService().findWalletForTokenId(tokenIdStr);
 
       const pos = await keeper.getService().publicClient.readContract({
         address: config.contracts.positionManager,
@@ -438,11 +524,11 @@ export function createServer(keeper: KeeperEngine) {
             address: config.contracts.gauge,
             abi: gaugeAbi,
             functionName: 'stakedContains',
-            args: [keeper.getService().account.address, BigInt(tokenIdStr)]
+            args: [detectedWallet.account.address, BigInt(tokenIdStr)]
           });
           if (!isStaked) {
-            keeper.getStorage().addLog('ACTION', `Stakeando NFT #${tokenIdStr} en Gauge de Aerodrome para activar recompensas...`);
-            await keeper.getService().stakePositionInGauge(tokenIdStr);
+            keeper.getStorage().addLog('ACTION', `Stakeando NFT #${tokenIdStr} (${detectedWallet.name}) en Gauge de Aerodrome...`);
+            await keeper.getService().stakePositionInGauge(tokenIdStr, detectedWallet.account.address);
           }
         } catch (stkErr: any) {
           console.error('[Import] Auto-stake warning:', stkErr);
@@ -451,6 +537,8 @@ export function createServer(keeper: KeeperEngine) {
 
       const newPos = {
         tokenId: tokenIdStr,
+        walletAddress: detectedWallet.address,
+        walletName: detectedWallet.name,
         tickLower,
         tickUpper,
         priceLower,
@@ -468,7 +556,7 @@ export function createServer(keeper: KeeperEngine) {
       keeper.getStorage().addPosition(newPos);
       keeper.getStorage().addLog(
         'ACTION',
-        `✅ Posición #${tokenIdStr} vinculada al bot! Rango: $${priceLower.toFixed(2)} - $${priceUpper.toFixed(2)}`
+        `✅ Posición #${tokenIdStr} vinculada a ${detectedWallet.name}! Rango: $${priceLower.toFixed(2)} - $${priceUpper.toFixed(2)}`
       );
 
       res.json({ success: true, position: newPos });
@@ -488,9 +576,12 @@ export function createServer(keeper: KeeperEngine) {
         return res.status(400).json({ error: 'No hay posición para retirar' });
       }
 
+      const targetPos = botState.positions?.find(p => p.tokenId === tokenId);
+      const walletAddress = targetPos?.walletAddress;
+
       keeper.getStorage().addLog('ACTION', `Iniciando retiro completo de liquidez para NFT #${tokenId}...`);
       try {
-        await keeper.getService().withdrawPositionFromGauge(tokenId);
+        await keeper.getService().withdrawPositionFromGauge(tokenId, walletAddress);
       } catch (e: any) {
         console.warn('[Withdraw] Gauge unstake notice:', e.message);
       }

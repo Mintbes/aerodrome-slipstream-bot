@@ -62,6 +62,8 @@ export class AerodromeService {
     return this.cachedAeroPrice ? this.cachedAeroPrice.price : 0.80;
   }
 
+  public wallets: Map<string, { id: string; name: string; account: any; walletClient: any }> = new Map();
+
   constructor() {
     // Multi-RPC failover pool to prevent rate-limit throttling
     const rpcList = Array.from(new Set([
@@ -80,6 +82,8 @@ export class AerodromeService {
       }
     });
 
+    const rpcTransport = fallback(rpcList, { rank: false, retryCount: 3 });
+
     try {
       this.account = privateKeyToAccount(config.privateKey);
     } catch {
@@ -89,8 +93,181 @@ export class AerodromeService {
     this.walletClient = createWalletClient({
       account: this.account,
       chain: base,
-      transport: fallback(rpcList, { rank: false, retryCount: 3 })
+      transport: rpcTransport
     });
+
+    // Initialize all configured wallets
+    for (const w of (config.wallets || [])) {
+      try {
+        const acc = privateKeyToAccount(w.privateKey);
+        const wc = createWalletClient({
+          account: acc,
+          chain: base,
+          transport: rpcTransport
+        });
+        this.wallets.set(acc.address.toLowerCase(), {
+          id: w.id,
+          name: w.name,
+          account: acc,
+          walletClient: wc
+        });
+      } catch (err) {
+        console.warn(`[Service] Could not initialize wallet ${w.name}:`, err);
+      }
+    }
+  }
+
+  /**
+   * Register a new wallet dynamically at runtime
+   */
+  registerWallet(name: string, privateKey: `0x${string}`): { success: boolean; address?: string; id?: string; error?: string } {
+    try {
+      const acc = privateKeyToAccount(privateKey);
+      const rpcList = Array.from(new Set([
+        'https://base-rpc.publicnode.com',
+        config.rpcUrl,
+        'https://base.llamarpc.com',
+        'https://1rpc.io/base',
+        'https://mainnet.base.org'
+      ])).map(url => http(url, { timeout: 8000 }));
+      const rpcTransport = fallback(rpcList, { rank: false, retryCount: 3 });
+
+      const wc = createWalletClient({
+        account: acc,
+        chain: base,
+        transport: rpcTransport
+      });
+      const id = `wallet-${this.wallets.size + 1}`;
+      this.wallets.set(acc.address.toLowerCase(), {
+        id,
+        name: name || `Cartera ${this.wallets.size + 1}`,
+        account: acc,
+        walletClient: wc
+      });
+      return { success: true, address: acc.address, id };
+    } catch (err: any) {
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+
+  /**
+   * Resolves the wallet credentials for a specific address or defaults to primary
+   */
+  getWalletFor(address?: string): { id: string; account: any; walletClient: any; name: string; address: string } {
+    if (address) {
+      const entry = this.wallets.get(address.toLowerCase());
+      if (entry) {
+        return { id: entry.id, account: entry.account, walletClient: entry.walletClient, name: entry.name, address: entry.account.address };
+      }
+    }
+    const defaultWallet = config.wallets?.[0];
+    return {
+      id: defaultWallet?.id || 'wallet-1',
+      account: this.account,
+      walletClient: this.walletClient,
+      name: defaultWallet?.name || 'Cartera Satélite 1',
+      address: this.account.address
+    };
+  }
+
+  /**
+   * Find which configured wallet owns a given NFT token ID
+   */
+  async findWalletForTokenId(tokenId: string): Promise<{ id: string; account: any; walletClient: any; name: string; address: string }> {
+    try {
+      const owner = (await this.publicClient.readContract({
+        address: config.contracts.positionManager,
+        abi: positionManagerAbi,
+        functionName: 'ownerOf',
+        args: [BigInt(tokenId)]
+      })) as `0x${string}`;
+
+      // If owner is Gauge, check stakedContains for each configured wallet
+      if (owner.toLowerCase() === config.contracts.gauge.toLowerCase()) {
+        for (const [_, entry] of this.wallets.entries()) {
+          const isStaked = await this.publicClient.readContract({
+            address: config.contracts.gauge,
+            abi: gaugeAbi,
+            functionName: 'stakedContains',
+            args: [entry.account.address, BigInt(tokenId)]
+          }).catch(() => false);
+          if (isStaked) {
+            return { id: entry.id, account: entry.account, walletClient: entry.walletClient, name: entry.name, address: entry.account.address };
+          }
+        }
+      } else {
+        const entry = this.wallets.get(owner.toLowerCase());
+        if (entry) {
+          return { id: entry.id, account: entry.account, walletClient: entry.walletClient, name: entry.name, address: entry.account.address };
+        }
+      }
+    } catch (err) {
+      console.warn(`[Service] findWalletForTokenId error for #${tokenId}:`, err);
+    }
+    return this.getWalletFor();
+  }
+
+  /**
+   * Returns live balances (ETH, WETH, USDC, AERO) for all configured wallets
+   */
+  async getAllWalletBalances(): Promise<Array<{
+    id: string;
+    name: string;
+    address: string;
+    ethBalance: number;
+    wethBalance: number;
+    usdcBalance: number;
+    aeroBalance: number;
+    totalWalletUsd: number;
+  }>> {
+    const aeroPrice = await this.getAeroPriceUsd();
+    const results = [];
+
+    for (const [_, entry] of this.wallets.entries()) {
+      try {
+        const addr = entry.account.address;
+        const [ethWei, wethWei, usdcWei, aeroWei] = await Promise.all([
+          this.publicClient.getBalance({ address: addr }).catch(() => 0n),
+          this.publicClient.readContract({ address: config.contracts.weth, abi: erc20Abi, functionName: 'balanceOf', args: [addr] }).catch(() => 0n),
+          this.publicClient.readContract({ address: config.contracts.usdc, abi: erc20Abi, functionName: 'balanceOf', args: [addr] }).catch(() => 0n),
+          this.publicClient.readContract({ address: config.contracts.aero, abi: erc20Abi, functionName: 'balanceOf', args: [addr] }).catch(() => 0n)
+        ]);
+
+        const ethBal = Number(formatUnits(ethWei, 18));
+        const wethBal = Number(formatUnits(wethWei, 18));
+        const usdcBal = Number(formatUnits(usdcWei, 6));
+        const aeroBal = Number(formatUnits(aeroWei, 18));
+        const totalUsd = usdcBal + (aeroBal * aeroPrice) + (ethBal * 2750);
+
+        results.push({
+          id: entry.id,
+          name: entry.name,
+          address: addr,
+          ethBalance: ethBal,
+          wethBalance: wethBal,
+          usdcBalance: usdcBal,
+          aeroBalance: aeroBal,
+          totalWalletUsd: totalUsd
+        });
+      } catch (err) {
+        console.warn(`[Service] Error getting balances for wallet ${entry.name}:`, err);
+      }
+    }
+
+    if (results.length === 0) {
+      results.push({
+        id: 'wallet-1',
+        name: 'Cartera Satélite 1',
+        address: this.account.address,
+        ethBalance: 0,
+        wethBalance: 0,
+        usdcBalance: 0,
+        aeroBalance: 0,
+        totalWalletUsd: 0
+      });
+    }
+
+    return results;
   }
 
   /**
@@ -168,11 +345,13 @@ export class AerodromeService {
     currentTick: number,
     exitDirection: 'UP' | 'DOWN',
     activeTokenId: string | null,
-    reinvestAero: boolean = false
+    reinvestAero: boolean = false,
+    targetWalletAddress?: string
   ): Promise<{
     success: boolean;
     newRange: ReturnType<typeof calculateZeroSwapUsdcRange>;
     newTokenId?: string;
+    walletAddress?: string;
     reinvestedAero?: number;
     reinvestedUsdc?: number;
     txHash?: string;
@@ -192,12 +371,18 @@ export class AerodromeService {
     }
 
     try {
+      const wallet = targetWalletAddress
+        ? this.getWalletFor(targetWalletAddress)
+        : (activeTokenId ? await this.findWalletForTokenId(activeTokenId) : this.getWalletFor());
+      const accountAddress = wallet.account.address;
+      const walletClient = wallet.walletClient;
+
       console.log(`[Service] ====================================================`);
       console.log(`[Service] 🔄 INITIATING ON-CHAIN ZERO-SWAP REBALANCE (${exitDirection})`);
+      console.log(`[Service] Wallet: ${wallet.name} (${accountAddress})`);
       console.log(`[Service] Current Tick: ${currentTick}. Target Range: [${newRange.tickLower}, ${newRange.tickUpper}] ($${newRange.priceLower.toFixed(2)} - $${newRange.priceUpper.toFixed(2)})`);
       console.log(`[Service] ====================================================`);
 
-      const accountAddress = this.account.address;
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
 
       // Step 1: If there is an active position, unstake from Gauge and withdraw liquidity
@@ -215,7 +400,7 @@ export class AerodromeService {
 
           if (isStaked) {
             console.log(`[Service] Step 1a: Unstaking NFT #${activeTokenId} from Aerodrome Gauge...`);
-            const withdrawTx = await this.walletClient.writeContract({
+            const withdrawTx = await walletClient.writeContract({
               address: config.contracts.gauge,
               abi: gaugeAbi,
               functionName: 'withdraw',
@@ -245,7 +430,7 @@ export class AerodromeService {
 
           if (liquidity > 0n) {
             console.log(`[Service] Step 1b: Removing all liquidity (${liquidity.toString()}) from NFT #${activeTokenId}...`);
-            const decreaseTx = await this.walletClient.writeContract({
+            const decreaseTx = await walletClient.writeContract({
               address: config.contracts.positionManager,
               abi: positionManagerAbi,
               functionName: 'decreaseLiquidity',
@@ -269,7 +454,7 @@ export class AerodromeService {
           // 1c. Collect all assets to wallet
           console.log(`[Service] Step 1c: Collecting withdrawn assets from NFT #${activeTokenId}...`);
           const max128 = 2n ** 128n - 1n;
-          const collectTx = await this.walletClient.writeContract({
+          const collectTx = await walletClient.writeContract({
             address: config.contracts.positionManager,
             abi: positionManagerAbi,
             functionName: 'collect',
@@ -309,7 +494,7 @@ export class AerodromeService {
           // Swap if AERO balance > 0.5 AERO (~$0.40)
           if (aeroBal > 500000000000000000n) {
             console.log(`[Service] 🔄 Auto-Compound: Swapping ${formatUnits(aeroBal, 18)} AERO to USDC to reinvest into the new LP range...`);
-            const swapRes = await this.swapAeroToUsdc(aeroBal);
+            const swapRes = await this.swapAeroToUsdc(aeroBal, accountAddress);
             if (swapRes.success && swapRes.usdcReceived) {
               reinvestedAero = Number(formatUnits(aeroBal, 18));
               reinvestedUsdc = swapRes.usdcReceived;
@@ -338,7 +523,7 @@ export class AerodromeService {
         })
       ]);
 
-      console.log(`[Service] Step 2: Balances available for Zero-Swap: WETH: ${formatUnits(wethBal, 18)}, USDC: ${formatUnits(usdcBal, 6)}`);
+      console.log(`[Service] Step 2: Balances available for Zero-Swap on ${wallet.name}: WETH: ${formatUnits(wethBal, 18)}, USDC: ${formatUnits(usdcBal, 6)}`);
 
       let amount0Desired = 0n;
       let amount1Desired = 0n;
@@ -367,7 +552,7 @@ export class AerodromeService {
         });
         if (wethAllowance < amount0Desired) {
           console.log(`[Service] Approving WETH to PositionManager...`);
-          const txWeth = await this.walletClient.writeContract({
+          const txWeth = await walletClient.writeContract({
             address: config.contracts.weth,
             abi: erc20Abi,
             functionName: 'approve',
@@ -387,7 +572,7 @@ export class AerodromeService {
         });
         if (usdcAllowance < amount1Desired) {
           console.log(`[Service] Approving USDC to PositionManager...`);
-          const txUsdc = await this.walletClient.writeContract({
+          const txUsdc = await walletClient.writeContract({
             address: config.contracts.usdc,
             abi: erc20Abi,
             functionName: 'approve',
@@ -399,8 +584,8 @@ export class AerodromeService {
       }
 
       // Step 4: Mint new single-sided concentrated liquidity position
-      console.log(`[Service] Step 4: Minting new single-sided Zero-Swap position [${newRange.tickLower}, ${newRange.tickUpper}]...`);
-      const mintTx = await this.walletClient.writeContract({
+      console.log(`[Service] Step 4: Minting new single-sided Zero-Swap position [${newRange.tickLower}, ${newRange.tickUpper}] for ${accountAddress}...`);
+      const mintTx = await walletClient.writeContract({
         address: config.contracts.positionManager,
         abi: positionManagerAbi,
         functionName: 'mint',
@@ -449,11 +634,11 @@ export class AerodromeService {
 
       // Step 5: Automatically stake the new NFT into the Aerodrome Gauge (Snuggle Style!)
       console.log(`[Service] Step 5: Automatically staking new NFT #${newTokenId} into Aerodrome Gauge...`);
-      let stakeRes = await this.stakePositionInGauge(newTokenId);
+      let stakeRes = await this.stakePositionInGauge(newTokenId, accountAddress);
       if (!stakeRes.success) {
         console.warn(`[Service] First stake attempt notice: ${stakeRes.error}. Retrying in 2 seconds...`);
         await new Promise(r => setTimeout(r, 2000));
-        stakeRes = await this.stakePositionInGauge(newTokenId);
+        stakeRes = await this.stakePositionInGauge(newTokenId, accountAddress);
       }
       if (stakeRes.success) {
         console.log(`[Service] Staked #${newTokenId} in Gauge! Tx: ${stakeRes.txHash}`);
@@ -466,6 +651,7 @@ export class AerodromeService {
         success: true,
         newRange,
         newTokenId,
+        walletAddress: accountAddress,
         reinvestedAero,
         reinvestedUsdc,
         txHash: mintTx
@@ -483,7 +669,7 @@ export class AerodromeService {
   /**
    * Discovers any existing WETH/USDC CL100 position owned by the wallet
    */
-  async discoverActivePosition(): Promise<{
+  async discoverActivePosition(targetWalletAddress?: string): Promise<{
     tokenId: string;
     tickLower: number;
     tickUpper: number;
@@ -492,12 +678,13 @@ export class AerodromeService {
     liquidity: bigint;
   } | null> {
     try {
+      const wallet = this.getWalletFor(targetWalletAddress);
       const pm = config.contracts.positionManager;
       const count = await this.publicClient.readContract({
         address: pm,
         abi: positionManagerAbi,
         functionName: 'balanceOf',
-        args: [this.account.address]
+        args: [wallet.account.address]
       });
 
       const total = Number(count);
@@ -506,7 +693,7 @@ export class AerodromeService {
           address: pm,
           abi: positionManagerAbi,
           functionName: 'tokenOfOwnerByIndex',
-          args: [this.account.address, BigInt(i)]
+          args: [wallet.account.address, BigInt(i)]
         });
 
         const p = await this.publicClient.readContract({
@@ -547,9 +734,10 @@ export class AerodromeService {
   /**
    * Automatically swaps 50% USDC to WETH and mints a centered concentrated liquidity range
    */
-  async createCentered5050Position(usdcTotalAmount: number): Promise<{
+  async createCentered5050Position(usdcTotalAmount: number, targetWalletAddress?: string): Promise<{
     success: boolean;
     tokenId?: string;
+    walletAddress?: string;
     tickLower: number;
     tickUpper: number;
     priceLower: number;
@@ -559,8 +747,11 @@ export class AerodromeService {
     error?: string;
   }> {
     try {
-      const accountAddress = this.account.address;
-      console.log(`[Service] Starting 50/50 LP Creation: ${usdcTotalAmount} USDC from ${accountAddress}...`);
+      const wallet = this.getWalletFor(targetWalletAddress);
+      const accountAddress = wallet.account.address;
+      const walletClient = wallet.walletClient;
+
+      console.log(`[Service] Starting 50/50 LP Creation: ${usdcTotalAmount} USDC from ${wallet.name} (${accountAddress})...`);
 
       // 1. Fetch current pool state and existing balances
       const [slot0, initialWeth, initialUsdc] = await Promise.all([
@@ -613,7 +804,7 @@ export class AerodromeService {
 
         if (routerAllowance < swapAmountBigInt) {
           console.log(`[Service] Approving USDC to Aerodrome SwapRouter...`);
-          const approveTx = await this.walletClient.writeContract({
+          const approveTx = await walletClient.writeContract({
             address: config.contracts.usdc,
             abi: erc20Abi,
             functionName: 'approve',
@@ -628,7 +819,7 @@ export class AerodromeService {
         console.log(`[Service] Swapping ${(usdcTotalAmount / 2).toFixed(2)} USDC to WETH...`);
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
 
-        swapTx = await this.walletClient.writeContract({
+        swapTx = await walletClient.writeContract({
           address: config.contracts.router,
           abi: routerAbi,
           functionName: 'exactInputSingle',
@@ -645,7 +836,7 @@ export class AerodromeService {
           }]
         });
 
-        const swapReceipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+        const swapReceipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx! });
         if (swapReceipt.status !== 'success') {
           throw new Error(`El swap de USDC a WETH falló en Base (Tx: ${swapTx})`);
         }
@@ -692,7 +883,7 @@ export class AerodromeService {
 
       if (wethPmAllowance < wethBal) {
         console.log(`[Service] Approving WETH to PositionManager...`);
-        const txWeth = await this.walletClient.writeContract({
+        const txWeth = await walletClient.writeContract({
           address: config.contracts.weth,
           abi: erc20Abi,
           functionName: 'approve',
@@ -704,7 +895,7 @@ export class AerodromeService {
 
       if (usdcPmAllowance < usdcBal) {
         console.log(`[Service] Approving USDC to PositionManager...`);
-        const txUsdc = await this.walletClient.writeContract({
+        const txUsdc = await walletClient.writeContract({
           address: config.contracts.usdc,
           abi: erc20Abi,
           functionName: 'approve',
@@ -717,7 +908,7 @@ export class AerodromeService {
       // 5. Mint concentrated liquidity position
       console.log(`[Service] Minting centered position [${tickLower}, ${tickUpper}]...`);
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
-      const mintTx = await this.walletClient.writeContract({
+      const mintTx = await walletClient.writeContract({
         address: config.contracts.positionManager,
         abi: positionManagerAbi,
         functionName: 'mint',
@@ -761,6 +952,7 @@ export class AerodromeService {
       return {
         success: true,
         tokenId: tokenIdStr,
+        walletAddress: accountAddress,
         tickLower,
         tickUpper,
         priceLower,
@@ -784,7 +976,7 @@ export class AerodromeService {
   /**
    * Reads exact on-chain liquidity and calculates real WETH and USDC deposited in the position
    */
-  async getPositionAmounts(tokenId: string, currentPrice: number): Promise<{
+  async getPositionAmounts(tokenId: string, currentPrice: number, ownerAddress?: string): Promise<{
     wethAmount: number;
     usdcAmount: number;
     lpValueUsd: number;
@@ -853,12 +1045,18 @@ export class AerodromeService {
       let uncollectedFeesUsd = 0;
       let apr = 195.3;
 
+      let checkAddress = ownerAddress;
+      if (!checkAddress) {
+        const found = await this.findWalletForTokenId(tokenId);
+        checkAddress = found.address;
+      }
+
       try {
         isStakedInGauge = await this.publicClient.readContract({
           address: config.contracts.gauge,
           abi: gaugeAbi,
           functionName: 'stakedContains',
-          args: [this.account.address, BigInt(tokenId)]
+          args: [checkAddress as `0x${string}`, BigInt(tokenId)]
         });
       } catch {
         isStakedInGauge = false;
@@ -870,7 +1068,7 @@ export class AerodromeService {
             address: config.contracts.gauge,
             abi: gaugeAbi,
             functionName: 'earned',
-            args: [this.account.address, BigInt(tokenId)]
+            args: [checkAddress as `0x${string}`, BigInt(tokenId)]
           });
 
           uncollectedAero = Number(formatUnits(earnedWei, 18));
@@ -920,14 +1118,26 @@ export class AerodromeService {
   /**
    * Checks if an NFT position is staked in the Aerodrome Gauge
    */
-  async isPositionStakedInGauge(tokenId: string): Promise<boolean> {
+  async isPositionStakedInGauge(tokenId: string, ownerAddress?: string): Promise<boolean> {
     try {
-      return await this.publicClient.readContract({
-        address: config.contracts.gauge,
-        abi: gaugeAbi,
-        functionName: 'stakedContains',
-        args: [this.account.address, BigInt(tokenId)]
-      });
+      if (ownerAddress) {
+        return await this.publicClient.readContract({
+          address: config.contracts.gauge,
+          abi: gaugeAbi,
+          functionName: 'stakedContains',
+          args: [ownerAddress as `0x${string}`, BigInt(tokenId)]
+        });
+      }
+      for (const [_, entry] of this.wallets.entries()) {
+        const isStaked = await this.publicClient.readContract({
+          address: config.contracts.gauge,
+          abi: gaugeAbi,
+          functionName: 'stakedContains',
+          args: [entry.account.address, BigInt(tokenId)]
+        }).catch(() => false);
+        if (isStaked) return true;
+      }
+      return false;
     } catch {
       return false;
     }
@@ -936,16 +1146,20 @@ export class AerodromeService {
   /**
    * Stake an LP position into Aerodrome Gauge (enables ~183% AERO emissions)
    */
-  async stakePositionInGauge(tokenId: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  async stakePositionInGauge(tokenId: string, targetWalletAddress?: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log(`[Service] Staking NFT #${tokenId} into Gauge ${config.contracts.gauge}...`);
+      const wallet = targetWalletAddress ? this.getWalletFor(targetWalletAddress) : await this.findWalletForTokenId(tokenId);
+      const accountAddress = wallet.account.address;
+      const walletClient = wallet.walletClient;
+
+      console.log(`[Service] Staking NFT #${tokenId} for wallet ${wallet.name} (${accountAddress}) into Gauge ${config.contracts.gauge}...`);
       const tokenIdBigInt = BigInt(tokenId);
 
       const isApprovedForAll = await this.publicClient.readContract({
         address: config.contracts.positionManager,
         abi: positionManagerAbi,
         functionName: 'isApprovedForAll',
-        args: [this.account.address, config.contracts.gauge]
+        args: [accountAddress, config.contracts.gauge]
       }).catch(() => false);
 
       if (!isApprovedForAll) {
@@ -958,7 +1172,7 @@ export class AerodromeService {
 
         if (approved.toLowerCase() !== config.contracts.gauge.toLowerCase()) {
           console.log(`[Service] Approving NFT #${tokenId} to Gauge...`);
-          const approveTx = await this.walletClient.writeContract({
+          const approveTx = await walletClient.writeContract({
             address: config.contracts.positionManager,
             abi: positionManagerAbi,
             functionName: 'approve',
@@ -970,7 +1184,7 @@ export class AerodromeService {
         }
       }
 
-      const depositTx = await this.walletClient.writeContract({
+      const depositTx = await walletClient.writeContract({
         address: config.contracts.gauge,
         abi: gaugeAbi,
         functionName: 'deposit',
@@ -994,12 +1208,13 @@ export class AerodromeService {
   /**
    * Withdraw an LP position from Aerodrome Gauge (unstake)
    */
-  async withdrawPositionFromGauge(tokenId: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  async withdrawPositionFromGauge(tokenId: string, targetWalletAddress?: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log(`[Service] Withdrawing NFT #${tokenId} from Gauge...`);
+      const wallet = targetWalletAddress ? this.getWalletFor(targetWalletAddress) : await this.findWalletForTokenId(tokenId);
       const tokenIdBigInt = BigInt(tokenId);
+      console.log(`[Service] Withdrawing NFT #${tokenId} from Gauge for wallet ${wallet.name} (${wallet.account.address})...`);
 
-      const withdrawTx = await this.walletClient.writeContract({
+      const withdrawTx = await wallet.walletClient.writeContract({
         address: config.contracts.gauge,
         abi: gaugeAbi,
         functionName: 'withdraw',
@@ -1023,20 +1238,22 @@ export class AerodromeService {
   /**
    * Claim accumulated AERO rewards from Gauge
    */
-  async claimAeroRewards(tokenId: string): Promise<{ success: boolean; txHash?: string; claimedAero?: number; error?: string }> {
+  async claimAeroRewards(tokenId: string, targetWalletAddress?: string): Promise<{ success: boolean; txHash?: string; claimedAero?: number; error?: string }> {
     try {
-      console.log(`[Service] Claiming AERO rewards for NFT #${tokenId}...`);
+      const wallet = targetWalletAddress ? this.getWalletFor(targetWalletAddress) : await this.findWalletForTokenId(tokenId);
+      const accountAddress = wallet.account.address;
+      console.log(`[Service] Claiming AERO rewards for NFT #${tokenId} on wallet ${wallet.name} (${accountAddress})...`);
       const tokenIdBigInt = BigInt(tokenId);
 
       const earnedWei = await this.publicClient.readContract({
         address: config.contracts.gauge,
         abi: gaugeAbi,
         functionName: 'earned',
-        args: [this.account.address, tokenIdBigInt]
+        args: [accountAddress, tokenIdBigInt]
       });
       const claimedAero = Number(formatUnits(earnedWei, 18));
 
-      const claimTx = await this.walletClient.writeContract({
+      const claimTx = await wallet.walletClient.writeContract({
         address: config.contracts.gauge,
         abi: gaugeAbi,
         functionName: 'getReward',
@@ -1052,7 +1269,7 @@ export class AerodromeService {
       console.log(`[Service] Successfully claimed ${claimedAero.toFixed(4)} AERO! Tx: ${claimTx}`);
       return { success: true, txHash: claimTx, claimedAero };
     } catch (err: any) {
-      console.error(`[Service] Claim AERO error:`, err);
+      console.error(`[Service] Claim AERO rewards error:`, err);
       return { success: false, error: err.shortMessage || err.message || String(err) };
     }
   }
@@ -1060,7 +1277,7 @@ export class AerodromeService {
   /**
    * Swaps AERO tokens to USDC using Aerodrome V2 Router (0xcF77...)
    */
-  async swapAeroToUsdc(aeroAmountWei: bigint): Promise<{ success: boolean; txHash?: string; usdcReceived?: number; error?: string }> {
+  async swapAeroToUsdc(aeroAmountWei: bigint, targetWalletAddress?: string): Promise<{ success: boolean; txHash?: string; usdcReceived?: number; error?: string }> {
     try {
       if (aeroAmountWei <= 0n) {
         return { success: false, error: 'Cantidad de AERO debe ser mayor a 0' };
@@ -1072,8 +1289,11 @@ export class AerodromeService {
         return { success: true, txHash: '0x_simulated_swap_usdc_' + Date.now(), usdcReceived: simUsdc };
       }
 
-      const accountAddress = this.account.address;
-      console.log(`[Service] Swapping ${formatUnits(aeroAmountWei, 18)} AERO to USDC via V2 Router...`);
+      const wallet = this.getWalletFor(targetWalletAddress);
+      const accountAddress = wallet.account.address;
+      const walletClient = wallet.walletClient;
+
+      console.log(`[Service] Swapping ${formatUnits(aeroAmountWei, 18)} AERO to USDC for ${wallet.name} (${accountAddress}) via V2 Router...`);
 
       // 1. Approve V2 Router to spend AERO if needed
       const allowance = await this.publicClient.readContract({
@@ -1085,7 +1305,7 @@ export class AerodromeService {
 
       if (allowance < aeroAmountWei) {
         console.log(`[Service] Approving AERO to V2 Router...`);
-        const approveTx = await this.walletClient.writeContract({
+        const approveTx = await walletClient.writeContract({
           address: config.contracts.aero,
           abi: erc20Abi,
           functionName: 'approve',
@@ -1114,7 +1334,7 @@ export class AerodromeService {
       const minUsdc = (expectedUsdc * 98n) / 100n; // 2% max slippage
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
 
-      const swapTx = await this.walletClient.writeContract({
+      const swapTx = await walletClient.writeContract({
         address: config.contracts.v2Router,
         abi: v2RouterAbi,
         functionName: 'swapExactTokensForTokens',
@@ -1145,7 +1365,7 @@ export class AerodromeService {
   /**
    * Swaps AERO tokens to WETH using Aerodrome V2 Router (0xcF77...)
    */
-  async swapAeroToWeth(aeroAmountWei: bigint): Promise<{ success: boolean; txHash?: string; wethReceived?: number; error?: string }> {
+  async swapAeroToWeth(aeroAmountWei: bigint, targetWalletAddress?: string): Promise<{ success: boolean; txHash?: string; wethReceived?: number; error?: string }> {
     try {
       if (aeroAmountWei <= 0n) {
         return { success: false, error: 'Cantidad de AERO debe ser mayor a 0' };
@@ -1157,8 +1377,11 @@ export class AerodromeService {
         return { success: true, txHash: '0x_simulated_swap_weth_' + Date.now(), wethReceived: simWeth };
       }
 
-      const accountAddress = this.account.address;
-      console.log(`[Service] Swapping ${formatUnits(aeroAmountWei, 18)} AERO to WETH via V2 Router...`);
+      const wallet = this.getWalletFor(targetWalletAddress);
+      const accountAddress = wallet.account.address;
+      const walletClient = wallet.walletClient;
+
+      console.log(`[Service] Swapping ${formatUnits(aeroAmountWei, 18)} AERO to WETH for ${wallet.name} (${accountAddress}) via V2 Router...`);
 
       // 1. Approve V2 Router
       const allowance = await this.publicClient.readContract({
@@ -1170,7 +1393,7 @@ export class AerodromeService {
 
       if (allowance < aeroAmountWei) {
         console.log(`[Service] Approving AERO to V2 Router...`);
-        const approveTx = await this.walletClient.writeContract({
+        const approveTx = await walletClient.writeContract({
           address: config.contracts.aero,
           abi: erc20Abi,
           functionName: 'approve',
@@ -1198,7 +1421,7 @@ export class AerodromeService {
       const minWeth = (expectedWeth * 98n) / 100n; // 2% max slippage
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
 
-      const swapTx = await this.walletClient.writeContract({
+      const swapTx = await walletClient.writeContract({
         address: config.contracts.v2Router,
         abi: v2RouterAbi,
         functionName: 'swapExactTokensForTokens',
@@ -1231,7 +1454,8 @@ export class AerodromeService {
    */
   async executeCompound(
     tokenId: string,
-    mode: 'usdc' | 'reinvest' = 'usdc'
+    mode: 'usdc' | 'reinvest' = 'usdc',
+    targetWalletAddress?: string
   ): Promise<{
     success: boolean;
     mode: 'usdc' | 'reinvest';
@@ -1241,7 +1465,11 @@ export class AerodromeService {
     error?: string;
   }> {
     try {
-      console.log(`[Service] Executing Compound (${mode.toUpperCase()}) for NFT #${tokenId}...`);
+      const wallet = targetWalletAddress ? this.getWalletFor(targetWalletAddress) : await this.findWalletForTokenId(tokenId);
+      const accountAddress = wallet.account.address;
+      const walletClient = wallet.walletClient;
+
+      console.log(`[Service] Executing Compound (${mode.toUpperCase()}) for NFT #${tokenId} on wallet ${wallet.name} (${accountAddress})...`);
 
       if (config.dryRun) {
         console.log(`[Service] [DryRun] Compound simulated successfully for #${tokenId} in mode: ${mode}`);
@@ -1255,7 +1483,7 @@ export class AerodromeService {
       }
 
       // 1. Claim AERO from Gauge
-      const claimRes = await this.claimAeroRewards(tokenId);
+      const claimRes = await this.claimAeroRewards(tokenId, accountAddress);
       if (!claimRes.success) {
         return { success: false, mode, error: claimRes.error || 'Fallo al reclamar del Gauge' };
       }
@@ -1265,7 +1493,7 @@ export class AerodromeService {
         address: config.contracts.aero,
         abi: erc20Abi,
         functionName: 'balanceOf',
-        args: [this.account.address]
+        args: [accountAddress]
       });
 
       const aeroBalNum = Number(formatUnits(aeroBal, 18));
@@ -1281,7 +1509,7 @@ export class AerodromeService {
 
       if (mode === 'usdc') {
         // Mode 1: Auto-Cosecha a USDC (pure profit cash-out to wallet)
-        const swapRes = await this.swapAeroToUsdc(aeroBal);
+        const swapRes = await this.swapAeroToUsdc(aeroBal, accountAddress);
         if (!swapRes.success) {
           return {
             success: false,
@@ -1305,8 +1533,8 @@ export class AerodromeService {
         const remainingAero = aeroBal - halfAero;
 
         const [swapUsdcRes, swapWethRes] = await Promise.all([
-          this.swapAeroToUsdc(halfAero),
-          this.swapAeroToWeth(remainingAero)
+          this.swapAeroToUsdc(halfAero, accountAddress),
+          this.swapAeroToWeth(remainingAero, accountAddress)
         ]);
 
         if (!swapUsdcRes.success || !swapWethRes.success) {
@@ -1323,12 +1551,12 @@ export class AerodromeService {
           address: config.contracts.gauge,
           abi: gaugeAbi,
           functionName: 'stakedContains',
-          args: [this.account.address, BigInt(tokenId)]
+          args: [accountAddress, BigInt(tokenId)]
         });
 
         if (isStaked) {
           console.log(`[Service] Temporarily withdrawing #${tokenId} from Gauge for increaseLiquidity...`);
-          await this.withdrawPositionFromGauge(tokenId);
+          await this.withdrawPositionFromGauge(tokenId, accountAddress);
           await new Promise(r => setTimeout(r, 2000));
         }
 
@@ -1338,13 +1566,13 @@ export class AerodromeService {
             address: config.contracts.weth,
             abi: erc20Abi,
             functionName: 'balanceOf',
-            args: [this.account.address]
+            args: [accountAddress]
           }),
           this.publicClient.readContract({
             address: config.contracts.usdc,
             abi: erc20Abi,
             functionName: 'balanceOf',
-            args: [this.account.address]
+            args: [accountAddress]
           })
         ]);
 
@@ -1354,18 +1582,18 @@ export class AerodromeService {
             address: config.contracts.weth,
             abi: erc20Abi,
             functionName: 'allowance',
-            args: [this.account.address, config.contracts.positionManager]
+            args: [accountAddress, config.contracts.positionManager]
           }),
           this.publicClient.readContract({
             address: config.contracts.usdc,
             abi: erc20Abi,
             functionName: 'allowance',
-            args: [this.account.address, config.contracts.positionManager]
+            args: [accountAddress, config.contracts.positionManager]
           })
         ]);
 
         if (wethAllowance < wethBal) {
-          const txW = await this.walletClient.writeContract({
+          const txW = await walletClient.writeContract({
             address: config.contracts.weth,
             abi: erc20Abi,
             functionName: 'approve',
@@ -1375,7 +1603,7 @@ export class AerodromeService {
         }
 
         if (usdcAllowance < usdcBal) {
-          const txU = await this.walletClient.writeContract({
+          const txU = await walletClient.writeContract({
             address: config.contracts.usdc,
             abi: erc20Abi,
             functionName: 'approve',
@@ -1386,7 +1614,7 @@ export class AerodromeService {
 
         // Increase liquidity
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
-        const incTx = await this.walletClient.writeContract({
+        const incTx = await walletClient.writeContract({
           address: config.contracts.positionManager,
           abi: positionManagerAbi,
           functionName: 'increaseLiquidity',
@@ -1405,7 +1633,7 @@ export class AerodromeService {
         console.log(`[Service] Liquidity increased on #${tokenId}! Tx: ${incTx}`);
 
         // Re-stake into Gauge
-        await this.stakePositionInGauge(tokenId);
+        await this.stakePositionInGauge(tokenId, accountAddress);
 
         return {
           success: true,

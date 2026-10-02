@@ -1,9 +1,16 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+export interface WalletAccountConfig {
+  id: string;
+  name: string;
+  privateKey: `0x${string}`;
+}
+
 export interface BotConfig {
   rpcUrl: string;
-  privateKey: `0x${string}`;
+  privateKey: `0x${string}`; // Default / Primary wallet
+  wallets: WalletAccountConfig[];
   rangeWidthPercent: number;
   rebalanceDelaySeconds: number;
   checkIntervalSeconds: number;
@@ -24,16 +31,72 @@ export interface BotConfig {
   };
 }
 
-const rawKey = process.env.PRIVATE_KEY?.trim() || '';
-const isAllZeros = /^0x?0{64}$/.test(rawKey);
-const isValidKey = /^0x[0-9a-fA-F]{64}$/.test(rawKey) && !isAllZeros;
-const safePrivateKey: `0x${string}` = isValidKey
-  ? (rawKey as `0x${string}`)
-  : '0x0000000000000000000000000000000000000000000000000000000000000001';
+function parsePrivateKey(raw?: string): `0x${string}` | null {
+  const trimmed = raw?.trim() || '';
+  const isAllZeros = /^0x?0{64}$/.test(trimmed);
+  const isValid = /^0x[0-9a-fA-F]{64}$/.test(trimmed) && !isAllZeros;
+  return isValid ? (trimmed as `0x${string}`) : null;
+}
+
+const safePrivateKey: `0x${string}` = parsePrivateKey(process.env.PRIVATE_KEY)
+  || '0x0000000000000000000000000000000000000000000000000000000000000001';
+
+// Discover all configured wallets
+const walletsList: WalletAccountConfig[] = [
+  {
+    id: 'wallet-1',
+    name: process.env.WALLET_NAME_1 || 'Cartera Satélite 1',
+    privateKey: safePrivateKey
+  }
+];
+
+if (process.env.PRIVATE_KEY_2) {
+  const pk2 = parsePrivateKey(process.env.PRIVATE_KEY_2);
+  if (pk2) {
+    walletsList.push({
+      id: 'wallet-2',
+      name: process.env.WALLET_NAME_2 || 'Cartera 2',
+      privateKey: pk2
+    });
+  }
+}
+
+if (process.env.PRIVATE_KEY_3) {
+  const pk3 = parsePrivateKey(process.env.PRIVATE_KEY_3);
+  if (pk3) {
+    walletsList.push({
+      id: 'wallet-3',
+      name: process.env.WALLET_NAME_3 || 'Cartera 3',
+      privateKey: pk3
+    });
+  }
+}
+
+// Optional JSON list: WALLETS_JSON=[{"name":"Cartera X","privateKey":"0x..."}]
+if (process.env.WALLETS_JSON) {
+  try {
+    const parsed = JSON.parse(process.env.WALLETS_JSON);
+    if (Array.isArray(parsed)) {
+      parsed.forEach((w: any, idx: number) => {
+        const pk = parsePrivateKey(w.privateKey);
+        if (pk && !walletsList.some(item => item.privateKey.toLowerCase() === pk.toLowerCase())) {
+          walletsList.push({
+            id: `wallet-${walletsList.length + 1}`,
+            name: w.name || `Cartera ${walletsList.length + 1}`,
+            privateKey: pk
+          });
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('[Config] Error parsing WALLETS_JSON:', err);
+  }
+}
 
 export const config: BotConfig = {
   rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
   privateKey: safePrivateKey,
+  wallets: walletsList,
   rangeWidthPercent: parseFloat(process.env.RANGE_WIDTH_PERCENT || '4.1'),
   rebalanceDelaySeconds: parseInt(process.env.REBALANCE_DELAY_SECONDS || '3600', 10),
   checkIntervalSeconds: parseInt(process.env.CHECK_INTERVAL_SECONDS || '15', 10),

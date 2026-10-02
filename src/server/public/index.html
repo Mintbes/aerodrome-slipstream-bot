@@ -83,6 +83,18 @@
       </div>
     </div>
 
+    <!-- Multi-Wallet Selector Bar -->
+    <div class="bg-[#121b2b] border border-[#23354f] rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+      <div id="wallet-selector-tabs" class="flex flex-wrap items-center gap-1.5">
+        <button onclick="setWalletFilter('all')" class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-[#22c55e] text-black shadow-md flex items-center gap-1.5">
+          <span>🌐</span> Todas las Carteras
+        </button>
+      </div>
+      <button onclick="openAddWalletModal()" class="px-3 py-1.5 rounded-xl bg-[#1e2d45] hover:bg-[#283c5c] border border-[#395074] text-xs font-bold text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+        <span>➕</span> Añadir Cartera
+      </button>
+    </div>
+
     <!-- Top 6 Aggregate KPI Dashboard Cards (Exact Snuggle Style) -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       
@@ -218,15 +230,24 @@
       </div>
 
       <div class="space-y-4">
+        <!-- Wallet Selector -->
+        <div>
+          <label class="block text-xs text-gray-300 mb-1.5 font-bold uppercase tracking-wider">
+            Cartera de Operación:
+          </label>
+          <select id="select-create-wallet" onchange="onSelectCreateWalletChange()" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-2.5 text-xs md:text-sm text-white font-mono focus:outline-none focus:border-emerald-500 cursor-pointer">
+          </select>
+        </div>
+
         <!-- Wallet info card -->
         <div class="p-3.5 rounded-xl bg-[#1a2842] border border-[#2f4363] flex items-center justify-between">
           <div>
-            <p class="text-xs text-gray-400">Wallet Satélite (Base):</p>
-            <p class="text-xs font-mono font-bold text-emerald-400">0xE96d...565d</p>
+            <p class="text-xs text-gray-400">Cartera Seleccionada:</p>
+            <p id="modal-selected-wallet-addr" class="text-xs font-mono font-bold text-emerald-400">0xE96d...565d</p>
           </div>
           <div class="text-right">
             <p class="text-xs text-gray-400">Saldo Disponible:</p>
-            <p id="modal-usdc-bal" class="text-sm font-mono font-black text-white">500.00 USDC</p>
+            <p id="modal-usdc-bal" class="text-sm font-mono font-black text-white">0.00 USDC</p>
           </div>
         </div>
 
@@ -409,6 +430,15 @@
       <div class="space-y-4">
         <div>
           <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+            Asignar a Cartera:
+          </label>
+          <select id="select-import-wallet" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-2.5 text-xs md:text-sm text-white font-mono focus:outline-none focus:border-emerald-500 cursor-pointer">
+            <option value="">Auto-detectar propietario on-chain</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
             Token ID del NFT (#):
           </label>
           <input id="input-import-tokenid" type="number" placeholder="Ej: 77296712" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-3 text-lg text-white font-mono font-bold focus:outline-none focus:border-emerald-500">
@@ -439,6 +469,57 @@
     </div>
   </div>
 
+  <!-- Modal: Añadir Nueva Cartera (Multi-Wallet) -->
+  <div id="add-wallet-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#141f33] border border-[#2b3d5b] rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#212f45] pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <span>💼</span> Vincular Nueva Cartera Satélite
+        </h3>
+        <button onclick="closeAddWalletModal()" class="text-gray-400 hover:text-white text-lg cursor-pointer">✕</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+            Nombre / Alias de la Cartera:
+          </label>
+          <input id="input-wallet-name" type="text" placeholder="Ej: Cartera Satélite 2" class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-2.5 text-sm text-white font-medium focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+            Clave Privada (0x...):
+          </label>
+          <input id="input-wallet-pk" type="password" placeholder="0x..." class="w-full bg-[#1a2842] border border-[#2f4363] rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-emerald-500">
+          <p class="text-[11px] text-gray-400 mt-1">64 caracteres hexadecimales precedidos de 0x.</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs space-y-1">
+          <p class="font-bold flex items-center gap-1.5">
+            <span>🛡️</span> Máxima Seguridad Local
+          </p>
+          <p class="text-[11px] text-gray-300">
+            La clave privada se guarda y ejecuta estrictamente dentro del servicio en tu mini PC HP (<span class="font-mono text-emerald-400">192.168.1.136</span>). Nunca se transmite a internet ni se expone en la interfaz.
+          </p>
+        </div>
+
+        <div id="add-wallet-progress-box" class="hidden p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono space-y-1">
+          <p id="add-wallet-progress-text"></p>
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t border-[#212f45]">
+        <button onclick="closeAddWalletModal()" id="btn-cancel-add-wallet" class="px-4 py-2.5 rounded-xl bg-[#1c2b45] hover:bg-[#253756] text-xs font-semibold text-gray-300 cursor-pointer">
+          Cancelar
+        </button>
+        <button onclick="executeAddWallet()" id="btn-submit-add-wallet" class="px-5 py-2.5 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-lg transition active:scale-98 cursor-pointer flex items-center gap-1.5">
+          <span>💼</span> Añadir Cartera
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="border-t border-[#212f45] py-4 text-center text-xs text-gray-500">
     <p>Personal DeFi Liquidity Keeper · Aerodrome Slipstream CL100 · 0% Performance Fees</p>
@@ -450,6 +531,8 @@
     let currentWalletUsdc = 500;
     let currentViewMode = 'full';
     let cardExpandedState = {};
+    let selectedWalletFilter = 'all';
+    let loadedWallets = [];
 
     function updateViewModeButtons() {
       const btnFull = document.getElementById('btn-view-full');
@@ -471,10 +554,7 @@
       cardExpandedState = {};
       updateViewModeButtons();
       if (window.currentStatusData) {
-        const positions = (window.currentStatusData.positions && window.currentStatusData.positions.length > 0)
-          ? window.currentStatusData.positions
-          : [window.currentStatusData.position];
-        renderPositions(positions, window.currentStatusData.pool?.currentPrice || currentPoolPrice);
+        applyWalletFilterAndRender();
       }
     }
 
@@ -484,10 +564,7 @@
         : (currentViewMode === 'full');
       cardExpandedState[tokenId] = !isCurrentlyExpanded;
       if (window.currentStatusData) {
-        const positions = (window.currentStatusData.positions && window.currentStatusData.positions.length > 0)
-          ? window.currentStatusData.positions
-          : [window.currentStatusData.position];
-        renderPositions(positions, window.currentStatusData.pool?.currentPrice || currentPoolPrice);
+        applyWalletFilterAndRender();
       }
     }
 
@@ -670,6 +747,9 @@
                     WETH / USDC 
                     <span class="text-[11px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold font-mono">CL100</span>
                     <a href="https://basescan.org/token/0x827922686190790b37229fd06084350E74485b72?a=${tokenId}" target="_blank" class="hover:underline hover:text-emerald-400 font-bold text-white font-mono text-xs md:text-sm">#${tokenId} ↗</a>
+                    <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold font-mono flex items-center gap-1">
+                      💼 ${pos.walletName || 'Cartera'} (${pos.walletAddress ? pos.walletAddress.slice(0, 6) + '...' + pos.walletAddress.slice(-4) : ''})
+                    </span>
                     <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#1e293b] text-gray-300 border border-[#334155] font-mono flex items-center gap-1">⏱️ ${ageStr}</span>
                     ${gaugeBadge}
                   </h3>
@@ -1112,6 +1192,255 @@
       }
     }
 
+    function renderWalletTabs(wallets) {
+      const container = document.getElementById('wallet-selector-tabs');
+      if (!container) return;
+
+      const allActive = selectedWalletFilter === 'all';
+      let html = `
+        <button onclick="setWalletFilter('all')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+          allActive
+            ? 'bg-[#22c55e] text-black font-extrabold shadow-md'
+            : 'bg-[#18263e] hover:bg-[#223554] border border-[#2b3e5c] text-gray-300'
+        }">
+          <span>🌐</span> Todas las Carteras
+        </button>
+      `;
+
+      if (wallets && wallets.length > 0) {
+        wallets.forEach(w => {
+          const isSelected = selectedWalletFilter.toLowerCase() === w.address.toLowerCase();
+          const usdcBal = w.balances?.usdc !== undefined ? w.balances.usdc : 0;
+          const shortAddr = `${w.address.slice(0, 6)}...${w.address.slice(-4)}`;
+          html += `
+            <button onclick="setWalletFilter('${w.address}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
+              isSelected
+                ? 'bg-[#22c55e] text-black font-extrabold shadow-md'
+                : 'bg-[#18263e] hover:bg-[#223554] border border-[#2b3e5c] text-gray-300'
+            }">
+              <span>💼</span>
+              <span>${w.name}</span>
+              <span class="font-mono text-[11px] opacity-80">(${shortAddr})</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                isSelected ? 'bg-black/20 text-black font-bold' : 'bg-emerald-500/10 text-emerald-400'
+              }">$${usdcBal.toFixed(0)}</span>
+            </button>
+          `;
+        });
+      }
+
+      container.innerHTML = html;
+    }
+
+    function setWalletFilter(filter) {
+      selectedWalletFilter = filter;
+      renderWalletTabs(loadedWallets);
+      applyWalletFilterAndRender();
+    }
+
+    function populateModalWalletSelects(wallets) {
+      const selectCreate = document.getElementById('select-create-wallet');
+      const selectImport = document.getElementById('select-import-wallet');
+
+      if (selectCreate && wallets && wallets.length > 0) {
+        const prevVal = selectCreate.value;
+        selectCreate.innerHTML = wallets.map(w => {
+          const usdcBal = (w.balances?.usdc || 0).toFixed(2);
+          const shortAddr = `${w.address.slice(0, 6)}...${w.address.slice(-4)}`;
+          return `<option value="${w.address}">${w.name} (${shortAddr}) · Saldo: $${usdcBal} USDC</option>`;
+        }).join('');
+        if (prevVal && wallets.some(w => w.address.toLowerCase() === prevVal.toLowerCase())) {
+          selectCreate.value = prevVal;
+        } else if (selectedWalletFilter !== 'all') {
+          selectCreate.value = selectedWalletFilter;
+        }
+      }
+
+      if (selectImport && wallets && wallets.length > 0) {
+        const prevVal = selectImport.value;
+        let importOptions = '<option value="">Auto-detectar propietario on-chain</option>';
+        wallets.forEach(w => {
+          const shortAddr = `${w.address.slice(0, 6)}...${w.address.slice(-4)}`;
+          importOptions += `<option value="${w.address}">${w.name} (${shortAddr})</option>`;
+        });
+        selectImport.innerHTML = importOptions;
+        if (prevVal) selectImport.value = prevVal;
+      }
+    }
+
+    function onSelectCreateWalletChange() {
+      const selectCreate = document.getElementById('select-create-wallet');
+      if (!selectCreate) return;
+      const addr = selectCreate.value;
+      const wallet = loadedWallets.find(w => w.address.toLowerCase() === addr.toLowerCase());
+
+      const addrEl = document.getElementById('modal-selected-wallet-addr');
+      const balEl = document.getElementById('modal-usdc-bal');
+
+      if (wallet) {
+        if (addrEl) addrEl.textContent = `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)} (${wallet.name})`;
+        const bal = wallet.balances?.usdc || 0;
+        currentWalletUsdc = bal;
+        if (balEl) balEl.textContent = `${bal.toFixed(2)} USDC`;
+      }
+      updateCreatePreview();
+    }
+
+    function openAddWalletModal() {
+      const modal = document.getElementById('add-wallet-modal');
+      if (!modal) return;
+      document.getElementById('input-wallet-name').value = '';
+      document.getElementById('input-wallet-pk').value = '';
+      const pbox = document.getElementById('add-wallet-progress-box');
+      if (pbox) pbox.classList.add('hidden');
+      modal.classList.remove('hidden');
+    }
+
+    function closeAddWalletModal() {
+      const modal = document.getElementById('add-wallet-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function executeAddWallet() {
+      const nameInput = document.getElementById('input-wallet-name');
+      const pkInput = document.getElementById('input-wallet-pk');
+      const btnSubmit = document.getElementById('btn-submit-add-wallet');
+      const btnCancel = document.getElementById('btn-cancel-add-wallet');
+      const progressBox = document.getElementById('add-wallet-progress-box');
+      const progressText = document.getElementById('add-wallet-progress-text');
+
+      const name = nameInput?.value?.trim() || `Cartera ${loadedWallets.length + 1}`;
+      let privateKey = pkInput?.value?.trim();
+
+      if (!privateKey) {
+        alert('Por favor introduce la clave privada.');
+        return;
+      }
+
+      if (!privateKey.startsWith('0x')) {
+        privateKey = '0x' + privateKey;
+      }
+
+      if (privateKey.length !== 66) {
+        alert('Formato de clave privada incorrecto (debe contener 64 caracteres hexadecimales con o sin 0x).');
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      btnCancel.disabled = true;
+      progressBox.classList.remove('hidden');
+      progressBox.className = 'p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-mono space-y-1';
+      progressText.innerHTML = '<span class="animate-spin inline-block mr-1.5">⏳</span> Validando clave privada e inicializando cartera on-chain...';
+
+      try {
+        const res = await fetch('/api/wallets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, privateKey })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          progressBox.className = 'p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-mono space-y-1';
+          progressText.innerHTML = `🎉 <b>¡Éxito! Cartera "${result.wallet.name}" añadida:</b><br><span class="font-mono text-[11px] text-gray-300">${result.wallet.address}</span>`;
+          selectedWalletFilter = result.wallet.address;
+          await updateDashboard();
+          setTimeout(() => {
+            closeAddWalletModal();
+            btnSubmit.disabled = false;
+            btnCancel.disabled = false;
+            progressBox.classList.add('hidden');
+          }, 2000);
+        } else {
+          progressBox.className = 'p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono space-y-1';
+          progressText.innerHTML = `❌ Error: ${result.error || 'No se pudo registrar la cartera'}`;
+          btnSubmit.disabled = false;
+          btnCancel.disabled = false;
+        }
+      } catch (err) {
+        progressBox.className = 'p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono space-y-1';
+        progressText.innerHTML = `❌ Error de red: ${err.message}`;
+        btnSubmit.disabled = false;
+        btnCancel.disabled = false;
+      }
+    }
+
+    function applyWalletFilterAndRender() {
+      if (!window.currentStatusData) return;
+      const data = window.currentStatusData;
+      const allPositions = (data.positions && data.positions.length > 0) ? data.positions : (data.position ? [data.position] : []);
+      const price = data.pool?.currentPrice || currentPoolPrice;
+
+      let filteredPositions = allPositions;
+      if (selectedWalletFilter !== 'all') {
+        filteredPositions = allPositions.filter(p => (p.walletAddress || '').toLowerCase() === selectedWalletFilter.toLowerCase());
+      }
+
+      // Recompute KPI cards according to filtered positions
+      const t = data.totals || {};
+      let totalLpValue = 0;
+      let totalEarned = 0;
+      let totalUncollected = 0;
+      let weightedAprSum = 0;
+
+      filteredPositions.forEach(p => {
+        const val = (typeof p.lpValue === 'number' && p.lpValue > 0) ? p.lpValue : 0;
+        totalLpValue += val;
+        const col = (typeof p.collectedUsd === 'number') ? p.collectedUsd : 0;
+        const uncol = (typeof p.uncollectedFeesUsd === 'number') ? p.uncollectedFeesUsd : (p.uncollectedUsd || 0);
+        totalEarned += (typeof p.totalEarnedUsd === 'number') ? p.totalEarnedUsd : (col + uncol);
+        totalUncollected += uncol;
+        weightedAprSum += val * (p.apr || 183.3);
+      });
+
+      const yieldApr = totalLpValue > 0 ? (weightedAprSum / totalLpValue) : (data.apr || 183.3);
+      const dailyProjected = (totalLpValue * (yieldApr / 100)) / 365;
+
+      let walletTotal = 0;
+      if (selectedWalletFilter === 'all') {
+        walletTotal = t.walletTotalUsd !== undefined ? t.walletTotalUsd : 0;
+      } else {
+        const w = loadedWallets.find(x => x.address.toLowerCase() === selectedWalletFilter.toLowerCase());
+        if (w && w.balances) {
+          walletTotal = (w.balances.usdc || 0) + ((w.balances.weth || 0) + (w.balances.eth || 0)) * price + (w.balances.aero || 0) * (t.aeroPriceUsd || 0.65);
+        }
+      }
+      const totalPortfolio = totalLpValue + walletTotal;
+
+      document.getElementById('kpi-total-value').textContent = `$${totalPortfolio.toFixed(2)}`;
+      document.getElementById('kpi-asset-breakdown').textContent = `LP: $${totalLpValue.toFixed(2)} · Wallet: $${walletTotal.toFixed(2)}`;
+      document.getElementById('kpi-total-earnings').textContent = formatMoney(totalEarned);
+      document.getElementById('kpi-uncollected-earnings').textContent = `${formatMoney(totalUncollected)} uncollected`;
+      document.getElementById('kpi-yield-pct').textContent = `${yieldApr.toFixed(1)}%`;
+      document.getElementById('kpi-daily-projected').textContent = `$${dailyProjected.toFixed(2)}/day projected`;
+      document.getElementById('kpi-active-positions').textContent = filteredPositions.length;
+
+      const badgeCount = document.getElementById('badge-positions-count');
+      if (badgeCount) badgeCount.textContent = `${filteredPositions.length} Active`;
+
+      // Update wallet pill in header
+      if (selectedWalletFilter !== 'all') {
+        const w = loadedWallets.find(x => x.address.toLowerCase() === selectedWalletFilter.toLowerCase());
+        if (w) {
+          document.getElementById('wallet-addr-short').textContent = `${w.name} (${w.address.slice(0, 6)}...${w.address.slice(-4)})`;
+          document.getElementById('wallet-link').href = `https://basescan.org/address/${w.address}`;
+          const usdcPart = (w.balances?.usdc || 0) > 0 ? `${(w.balances?.usdc || 0).toFixed(1)} USDC · ` : '';
+          const wethPart = `${(w.balances?.weth || 0).toFixed(4)} WETH`;
+          document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart} ($${walletTotal.toFixed(2)})`;
+        }
+      } else if (data.walletAddress) {
+        const w = data.walletAddress;
+        document.getElementById('wallet-addr-short').textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
+        document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
+        const b = data.pool?.balances || {};
+        const usdcPart = (b.usdc || 0) > 0 ? `${(b.usdc || 0).toFixed(1)} USDC · ` : '';
+        const wethPart = `${(b.weth || 0).toFixed(4)} WETH`;
+        document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart} ($${walletTotal.toFixed(2)})`;
+      }
+
+      renderPositions(filteredPositions, price);
+    }
+
     async function updateDashboard() {
       try {
         const res = await fetch('/api/status');
@@ -1128,47 +1457,6 @@
           modalUsdcBal.textContent = `${currentWalletUsdc.toFixed(2)} USDC`;
         }
 
-        // Totals & Aggregate KPI Cards (Exact Snuggle Style)
-        const t = data.totals || {};
-        const b = data.pool.balances || {};
-        const ethPart = (b.eth || 0) * price;
-        const wethPart = (b.weth || 0) * price;
-        const usdcPart = b.usdc || 0;
-        const walletTotal = (t.walletTotalUsd !== undefined) ? t.walletTotalUsd : (wethPart + usdcPart + ethPart);
-        const totalLpValue = (t.totalLpValue !== undefined) ? t.totalLpValue : (data.position?.lpValue || 403.84);
-        const totalPortfolio = (t.totalPortfolioValue !== undefined) ? t.totalPortfolioValue : (totalLpValue + walletTotal);
-
-        const totalEarned = (t.totalEarnedUsd !== undefined) ? t.totalEarnedUsd : (data.earnings?.totalEarnedUsd || 1.30);
-        const totalUncollected = (t.totalUncollectedUsd !== undefined) ? t.totalUncollectedUsd : (data.earnings?.uncollectedUsd || 0);
-
-        const yieldApr = (t.portfolioYieldApr !== undefined) ? t.portfolioYieldApr : (data.apr || 162.8);
-        const dailyProjected = (t.dailyProjectedUsd !== undefined) ? t.dailyProjectedUsd : ((totalLpValue * (yieldApr / 100)) / 365);
-
-        const activeCount = (t.activePositionsCount !== undefined) ? t.activePositionsCount : (data.positions?.length || 1);
-        const totalReb = (t.totalRebalances !== undefined) ? t.totalRebalances : (data.rebalancesCount || 0);
-
-        document.getElementById('kpi-total-value').textContent = `$${totalPortfolio.toFixed(2)}`;
-        document.getElementById('kpi-asset-breakdown').textContent = `LP: $${totalLpValue.toFixed(2)} · Wallet: $${walletTotal.toFixed(2)}`;
-        document.getElementById('kpi-total-earnings').textContent = formatMoney(totalEarned);
-        document.getElementById('kpi-uncollected-earnings').textContent = `${formatMoney(totalUncollected)} uncollected`;
-        document.getElementById('kpi-yield-pct').textContent = `${yieldApr.toFixed(1)}%`;
-        document.getElementById('kpi-daily-projected').textContent = `$${dailyProjected.toFixed(2)}/day projected`;
-        document.getElementById('kpi-active-positions').textContent = activeCount;
-        document.getElementById('kpi-rebalances-count').textContent = totalReb;
-
-        const badgeCount = document.getElementById('badge-positions-count');
-        if (badgeCount) badgeCount.textContent = `${activeCount} Active`;
-
-        // Wallet pill
-        if (data.walletAddress) {
-          const w = data.walletAddress;
-          document.getElementById('wallet-addr-short').textContent = `${w.slice(0, 6)}...${w.slice(-4)}`;
-          document.getElementById('wallet-link').href = `https://basescan.org/address/${w}`;
-          const usdcPart = (b.usdc || 0) > 0 ? `${(b.usdc || 0).toFixed(1)} USDC · ` : '';
-          const wethPart = `${(b.weth || 0).toFixed(4)} WETH`;
-          document.getElementById('wallet-bal-summary').textContent = `${usdcPart}${wethPart} ($${walletTotal.toFixed(2)})`;
-        }
-
         // Mode badge
         const badgeMode = document.getElementById('badge-mode');
         if (badgeMode) {
@@ -1181,9 +1469,13 @@
           }
         }
 
-        // Render dynamic positions list
-        const positionsList = (data.positions && data.positions.length > 0) ? data.positions : [data.position];
-        renderPositions(positionsList, price);
+        // Multi-wallets list & tabs
+        loadedWallets = data.wallets || [];
+        renderWalletTabs(loadedWallets);
+        populateModalWalletSelects(loadedWallets);
+
+        // Apply wallet filter and render positions & KPIs
+        applyWalletFilterAndRender();
 
         // Logs
         const logsContainer = document.getElementById('logs-list');
@@ -1249,6 +1541,12 @@
     function openCreateModal() {
       const modal = document.getElementById('create-modal');
       modal.classList.remove('hidden');
+      populateModalWalletSelects(loadedWallets);
+      if (selectedWalletFilter !== 'all') {
+        const selectCreate = document.getElementById('select-create-wallet');
+        if (selectCreate) selectCreate.value = selectedWalletFilter;
+      }
+      onSelectCreateWalletChange();
       const input = document.getElementById('input-create-amount');
       if (!input.value || parseFloat(input.value) <= 0) {
         input.value = currentWalletUsdc > 0 ? currentWalletUsdc : 500;
@@ -1295,6 +1593,7 @@
         return;
       }
 
+      const targetWallet = document.getElementById('select-create-wallet')?.value || undefined;
       const btnSubmit = document.getElementById('btn-submit-create');
       const btnCancel = document.getElementById('btn-cancel-create');
       const progressBox = document.getElementById('create-progress-box');
@@ -1311,7 +1610,7 @@
         const res = await fetch('/api/create-5050', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: amt })
+          body: JSON.stringify({ amount: amt, walletAddress: targetWallet })
         });
         const result = await res.json();
 
@@ -1346,6 +1645,11 @@
     function openImportModal() {
       const modal = document.getElementById('import-modal');
       modal.classList.remove('hidden');
+      populateModalWalletSelects(loadedWallets);
+      if (selectedWalletFilter !== 'all') {
+        const selectImport = document.getElementById('select-import-wallet');
+        if (selectImport) selectImport.value = selectedWalletFilter;
+      }
       const input = document.getElementById('input-import-tokenid');
       if (input) input.focus();
     }
@@ -1363,6 +1667,7 @@
         return;
       }
 
+      const targetWallet = document.getElementById('select-import-wallet')?.value || undefined;
       const stakeNow = document.getElementById('input-import-stake')?.checked ?? true;
       const btnSubmit = document.getElementById('btn-submit-import');
       const btnCancel = document.getElementById('btn-cancel-import');
@@ -1379,7 +1684,7 @@
         const res = await fetch('/api/import-position', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tokenId, stakeNow })
+          body: JSON.stringify({ tokenId, stakeNow, walletAddress: targetWallet })
         });
         const result = await res.json();
 
