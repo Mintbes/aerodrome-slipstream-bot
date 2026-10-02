@@ -19,6 +19,7 @@ export interface PositionItem {
   compoundThresholdUsd?: number;
   harvestedAero?: number;
   collectedUsd?: number;
+  upOnlyRebalance?: boolean;
 }
 
 export interface BotState {
@@ -36,6 +37,7 @@ export interface BotState {
   totalHarvestedAero: number;
   autoSnuggle: boolean;
   compound: boolean;
+  upOnlyRebalance?: boolean;
   compoundMode?: CompoundMode;
   compoundThresholdUsd?: number;
   rebalanceHistory: Array<{
@@ -71,6 +73,7 @@ const DEFAULT_STATE: BotState = {
   totalHarvestedAero: 0,
   autoSnuggle: true,
   compound: true,
+  upOnlyRebalance: true,
   compoundMode: 'usdc',
   compoundThresholdUsd: 25,
   rebalanceHistory: [],
@@ -102,7 +105,8 @@ export class StorageService {
               rebalancesCount: parsed.rebalancesCount ?? 0,
               createdAt: Date.now() - 36000000,
               autoSnuggle: parsed.autoSnuggle ?? true,
-              compound: parsed.compound ?? true
+              compound: parsed.compound ?? true,
+              upOnlyRebalance: parsed.upOnlyRebalance ?? true
             }];
           } else {
             parsed.positions = [];
@@ -110,10 +114,12 @@ export class StorageService {
         }
         if (parsed.compoundMode === undefined) parsed.compoundMode = 'usdc';
         if (parsed.compoundThresholdUsd === undefined) parsed.compoundThresholdUsd = 25;
+        if (parsed.upOnlyRebalance === undefined) parsed.upOnlyRebalance = true;
         if (Array.isArray(parsed.positions)) {
           for (const p of parsed.positions) {
             if (p.compoundMode === undefined) p.compoundMode = parsed.compoundMode;
             if (p.compoundThresholdUsd === undefined) p.compoundThresholdUsd = parsed.compoundThresholdUsd;
+            if (p.upOnlyRebalance === undefined) p.upOnlyRebalance = parsed.upOnlyRebalance;
             if (p.tokenId === '77296712' && (!p.harvestedAero || p.harvestedAero === 0)) {
               p.harvestedAero = 31.8337;
               p.collectedUsd = 25.38;

@@ -104,6 +104,7 @@ export function createServer(keeper: KeeperEngine) {
           createdAt: posCreatedAt,
           autoSnuggle: pos.autoSnuggle !== false,
           compound: pos.compound !== false,
+          upOnlyRebalance: pos.upOnlyRebalance !== false && botState.upOnlyRebalance !== false,
           compoundMode: pos.compoundMode || botState.compoundMode || 'usdc',
           compoundThresholdUsd: pos.compoundThresholdUsd || botState.compoundThresholdUsd || 25,
           wethAmount: amounts.wethAmount,
@@ -202,6 +203,7 @@ export function createServer(keeper: KeeperEngine) {
         totalHarvestedAero: botState.totalHarvestedAero,
         autoSnuggle: botState.autoSnuggle !== false,
         compound: botState.compound !== false,
+        upOnlyRebalance: botState.upOnlyRebalance !== false,
         compoundMode: botState.compoundMode || 'usdc',
         compoundThresholdUsd: botState.compoundThresholdUsd || 25,
         dryRun: config.dryRun,
@@ -216,11 +218,11 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
-  // Toggle Feature endpoint (Auto-Snuggle, Compound)
+  // Toggle Feature endpoint (Auto-Snuggle, Compound, Up-Only Bull Run Mode)
   app.post('/api/toggle', (req, res) => {
     try {
       const { tokenId, key, value } = req.body;
-      if (key === 'autoSnuggle' || key === 'compound') {
+      if (key === 'autoSnuggle' || key === 'compound' || key === 'upOnlyRebalance') {
         if (tokenId) {
           keeper.getStorage().updatePosition(tokenId, p => {
             (p as any)[key] = Boolean(value);
@@ -229,7 +231,10 @@ export function createServer(keeper: KeeperEngine) {
         keeper.getStorage().updateState(s => {
           (s as any)[key] = Boolean(value);
         });
-        keeper.getStorage().addLog('INFO', `${key === 'autoSnuggle' ? 'Auto-Snuggle' : 'Compound'} fue ${value ? 'activado' : 'desactivado'}${tokenId ? ` para #${tokenId}` : ''}.`);
+        const label = key === 'autoSnuggle'
+          ? 'Auto-Snuggle'
+          : (key === 'upOnlyRebalance' ? 'Modo Bull Run (Solo al Alza)' : 'Compound');
+        keeper.getStorage().addLog('INFO', `${label} fue ${value ? 'activado' : 'desactivado'}${tokenId ? ` para #${tokenId}` : ''}.`);
         res.json({ success: true, key, value: Boolean(value) });
       } else {
         res.status(400).json({ error: 'Clave no válida' });

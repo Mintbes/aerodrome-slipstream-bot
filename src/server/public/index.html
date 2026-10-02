@@ -601,17 +601,46 @@
           const delaySec = pos.remainingDelaySec !== undefined ? pos.remainingDelaySec : 3600;
           const min = Math.floor(delaySec / 60);
           const sec = delaySec % 60;
-          statusBadgeHtml = `
-            <div class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30">
-              <span>Out of Range</span> <span class="font-mono opacity-80 text-[10px]">⏱ ${min}m ${sec}s</span>
-            </div>
-          `;
-          bannerHtml = `
-            <div class="p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#212f45]">
-              Auto-snuggle in ~${min}m ${sec}s
-            </div>
-          `;
-          bandColorClass = 'bg-amber-950/70 border-amber-400';
+          const isBelow = currentPrice < pos.priceLower;
+          const isUpOnlyBlocked = isBelow && (pos.upOnlyRebalance !== false);
+
+          if (isUpOnlyBlocked) {
+            statusBadgeHtml = `
+              <div class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                <span>🐂 Bull Run: HODL WETH</span>
+              </div>
+            `;
+            bannerHtml = `
+              <div class="p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#212f45]">
+                🐂 Modo Bull Run Activo: Precio bajo rango. Manteniendo 100% WETH esperando rebote (Rebalanceo abajo pausado)
+              </div>
+            `;
+            bandColorClass = 'bg-amber-950/70 border-amber-400';
+          } else if (delaySec === 0 && currentPrice > pos.priceUpper) {
+            statusBadgeHtml = `
+              <div class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-green-500/10 text-green-400 border border-green-500/30">
+                <span>Snuggled ✓</span>
+              </div>
+            `;
+            bannerHtml = `
+              <div class="p-3 text-center text-xs font-semibold text-[#22c55e] bg-emerald-500/10 border-b border-[#212f45]">
+                Optimally positioned (snuggled) ✓
+              </div>
+            `;
+            bandColorClass = 'bg-emerald-950/70 border-emerald-400';
+          } else {
+            statusBadgeHtml = `
+              <div class="px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                <span>Out of Range</span> <span class="font-mono opacity-80 text-[10px]">⏱ ${min}m ${sec}s</span>
+              </div>
+            `;
+            bannerHtml = `
+              <div class="p-3 text-center text-xs font-semibold text-amber-300 bg-amber-500/10 border-b border-[#212f45]">
+                Auto-snuggle in ~${min}m ${sec}s
+              </div>
+            `;
+            bandColorClass = 'bg-amber-950/70 border-amber-400';
+          }
         }
 
         const gaugeBadge = pos.isStakedInGauge !== false
@@ -739,8 +768,8 @@
                 </div>
               </div>
 
-              <!-- Auto-Snuggle & Compound Toggles Row -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 border-b border-[#212f45]">
+              <!-- Auto-Snuggle, Bull Run Mode & Compound Toggles Row -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 border-b border-[#212f45]">
                 <div onclick="togglePositionFeature('${tokenId}', 'autoSnuggle')" class="flex items-center justify-between p-4 rounded-xl bg-[#1a2842] border border-[#2f4363] hover:border-[#3d557c] transition cursor-pointer select-none">
                   <div>
                     <p class="text-sm font-bold text-white">Auto-Snuggle</p>
@@ -748,6 +777,20 @@
                   </div>
                   <div class="w-12 h-6 flex items-center ${pos.autoSnuggle !== false ? 'bg-[#22c55e]' : 'bg-[#1e293b]'} rounded-full p-1 transition-colors duration-300 shadow">
                     <div class="bg-white w-4 h-4 rounded-full shadow-md transform ${pos.autoSnuggle !== false ? 'translate-x-6' : 'translate-x-0'} transition-transform duration-300"></div>
+                  </div>
+                </div>
+
+                <div onclick="togglePositionFeature('${tokenId}', 'upOnlyRebalance')" class="flex items-center justify-between p-4 rounded-xl bg-[#1a2842] border border-[#2f4363] hover:border-[#3d557c] transition cursor-pointer select-none" title="Si ETH cae, no vende barato. Mantiene 100% WETH esperando rebote.">
+                  <div>
+                    <p class="text-sm font-bold text-white flex items-center gap-1.5">
+                      <span>🐂</span> Bull Run (Solo Alza)
+                    </p>
+                    <p class="text-xs font-bold ${pos.upOnlyRebalance !== false ? 'text-amber-400' : 'text-gray-400'}">
+                      ${pos.upOnlyRebalance !== false ? 'Protege WETH en caídas' : 'Bidireccional'}
+                    </p>
+                  </div>
+                  <div class="w-12 h-6 flex items-center ${pos.upOnlyRebalance !== false ? 'bg-amber-500' : 'bg-[#1e293b]'} rounded-full p-1 transition-colors duration-300 shadow">
+                    <div class="bg-white w-4 h-4 rounded-full shadow-md transform ${pos.upOnlyRebalance !== false ? 'translate-x-6' : 'translate-x-0'} transition-transform duration-300"></div>
                   </div>
                 </div>
 

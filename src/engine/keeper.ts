@@ -106,6 +106,17 @@ export class KeeperEngine {
                 continue;
               }
               const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
+
+              // Bull Run Mode: Only rebalance UP. If price fell below range, hold 100% WETH and wait for recovery.
+              const isUpOnly = pos.upOnlyRebalance !== false && botState.upOnlyRebalance !== false;
+              if (dir === 'DOWN' && isUpOnly) {
+                if (!(pos as any).lastUpOnlyLog || (Date.now() - (pos as any).lastUpOnlyLog > 300000)) {
+                  this.storage.addLog('INFO', `🐂 Modo Bull Run (Solo al Alza) activo para #${pos.tokenId}: ETH cayó bajo el rango ($${state.currentPrice.toFixed(2)} < $${pos.priceLower.toFixed(0)}). Rebalanceo a la baja bloqueado. Manteniendo 100% WETH a la espera de recuperación para no vender en el fondo.`);
+                  (pos as any).lastUpOnlyLog = Date.now();
+                }
+                continue;
+              }
+
               const targetRange = this.service.calculateRebalanceRange(state.currentTick, dir);
               if (targetRange.tickLower === pos.tickLower && targetRange.tickUpper === pos.tickUpper) {
                 if (!(pos as any).lastRedundantLog || (Date.now() - (pos as any).lastRedundantLog > 300000)) {
