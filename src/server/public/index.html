@@ -624,7 +624,14 @@
         return;
       }
 
-      container.innerHTML = positions.map((pos) => {
+      // Always sort positions descending by capital (lpValue)
+      const sortedPositions = [...positions].sort((a, b) => {
+        const valA = (typeof a.lpValue === 'number' && a.lpValue > 0) ? a.lpValue : 0;
+        const valB = (typeof b.lpValue === 'number' && b.lpValue > 0) ? b.lpValue : 0;
+        return valB - valA;
+      });
+
+      container.innerHTML = sortedPositions.map((pos) => {
         const tokenId = String(pos.tokenId);
         const lpVal = (typeof pos.lpValue === 'number' && pos.lpValue > 0) ? pos.lpValue : 403.84;
         const wethInLp = pos.wethAmount !== undefined ? pos.wethAmount : 0;
@@ -1378,6 +1385,13 @@
       if (selectedWalletFilter !== 'all') {
         filteredPositions = allPositions.filter(p => (p.walletAddress || '').toLowerCase() === selectedWalletFilter.toLowerCase());
       }
+
+      // Always sort positions descending by capital (highest capital first)
+      filteredPositions.sort((a, b) => {
+        const valA = (typeof a.lpValue === 'number' && a.lpValue > 0) ? a.lpValue : 0;
+        const valB = (typeof b.lpValue === 'number' && b.lpValue > 0) ? b.lpValue : 0;
+        return valB - valA;
+      });
 
       // Recompute KPI cards according to filtered positions
       const t = data.totals || {};

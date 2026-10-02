@@ -144,6 +144,9 @@ export function createServer(keeper: KeeperEngine) {
         };
       }));
 
+      // Always sort positions by capital (lpValue) descending (highest capital first)
+      positions.sort((a, b) => (b.lpValue || 0) - (a.lpValue || 0));
+
       const aeroPrice = await keeper.getService().getAeroPriceUsd();
 
       // Totals calculation
