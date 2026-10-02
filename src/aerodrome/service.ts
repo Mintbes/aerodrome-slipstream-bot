@@ -417,7 +417,17 @@ export class AerodromeService {
 
       // Step 5: Automatically stake the new NFT into the Aerodrome Gauge (Snuggle Style!)
       console.log(`[Service] Step 5: Automatically staking new NFT #${newTokenId} into Aerodrome Gauge...`);
-      await this.stakePositionInGauge(newTokenId);
+      let stakeRes = await this.stakePositionInGauge(newTokenId);
+      if (!stakeRes.success) {
+        console.warn(`[Service] First stake attempt notice: ${stakeRes.error}. Retrying in 2 seconds...`);
+        await new Promise(r => setTimeout(r, 2000));
+        stakeRes = await this.stakePositionInGauge(newTokenId);
+      }
+      if (stakeRes.success) {
+        console.log(`[Service] Staked #${newTokenId} in Gauge! Tx: ${stakeRes.txHash}`);
+      } else {
+        console.warn(`[Service] Staking in Gauge deferred to Keeper Watchdog: ${stakeRes.error}`);
+      }
 
       console.log(`[Service] ✅ Zero-Swap Rebalance Fully Completed! New Token: #${newTokenId}`);
       return {
@@ -870,6 +880,22 @@ export class AerodromeService {
         isStakedInGauge: false,
         apr: 183.3
       };
+    }
+  }
+
+  /**
+   * Checks if an NFT position is staked in the Aerodrome Gauge
+   */
+  async isPositionStakedInGauge(tokenId: string): Promise<boolean> {
+    try {
+      return await this.publicClient.readContract({
+        address: config.contracts.gauge,
+        abi: gaugeAbi,
+        functionName: 'stakedContains',
+        args: [this.account.address, BigInt(tokenId)]
+      });
+    } catch {
+      return false;
     }
   }
 

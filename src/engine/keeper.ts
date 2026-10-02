@@ -73,6 +73,32 @@ export class KeeperEngine {
           }] : []);
 
       for (const pos of positions) {
+        // Watchdog: Ensure active position is always Staked in Aerodrome Gauge
+        if (pos.tokenId && !config.dryRun) {
+          try {
+            const isStaked = await this.service.isPositionStakedInGauge(pos.tokenId);
+            if (!isStaked) {
+              const now = Date.now();
+              const lastStakeAttempt = (pos as any).lastStakeAttempt || 0;
+              if (now - lastStakeAttempt > 45000) {
+                (pos as any).lastStakeAttempt = now;
+                this.storage.addLog(
+                  'ACTION',
+                  `🛡️ Watchdog: Posición #${pos.tokenId} detectada en Wallet (sin stakear). Stakeando automáticamente en Gauge de Aerodrome...`
+                );
+                const stakeRes = await this.service.stakePositionInGauge(pos.tokenId);
+                if (stakeRes.success) {
+                  this.storage.addLog('ACTION', `✅ ¡Posición #${pos.tokenId} auto-stakeada con éxito en Gauge! Tx: ${stakeRes.txHash?.slice(0, 10)}...`);
+                } else {
+                  this.storage.addLog('WARN', `Aviso watchdog al auto-stakear #${pos.tokenId}: ${stakeRes.error}`);
+                }
+              }
+            }
+          } catch (stkErr: any) {
+            console.error(`[Keeper] Gauge watchdog error for #${pos.tokenId}:`, stkErr);
+          }
+        }
+
         const inRange = this.service.isTickInRange(state.currentTick, pos.tickLower, pos.tickUpper);
 
         if (inRange) {
