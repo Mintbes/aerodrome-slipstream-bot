@@ -1439,6 +1439,8 @@
       document.getElementById('kpi-yield-pct').textContent = `${yieldApr.toFixed(1)}%`;
       document.getElementById('kpi-daily-projected').textContent = `$${dailyProjected.toFixed(2)}/day projected`;
       document.getElementById('kpi-active-positions').textContent = filteredPositions.length;
+      const totalRebalances = filteredPositions.reduce((sum, p) => sum + (p.rebalancesCount || 0), 0);
+      document.getElementById('kpi-rebalances-count').textContent = totalRebalances;
 
       const badgeCount = document.getElementById('badge-positions-count');
       if (badgeCount) badgeCount.textContent = `${filteredPositions.length} Active`;
