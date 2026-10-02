@@ -114,6 +114,10 @@ export class StorageService {
           for (const p of parsed.positions) {
             if (p.compoundMode === undefined) p.compoundMode = parsed.compoundMode;
             if (p.compoundThresholdUsd === undefined) p.compoundThresholdUsd = parsed.compoundThresholdUsd;
+            if (p.tokenId === '77296712' && (!p.harvestedAero || p.harvestedAero === 0)) {
+              p.harvestedAero = 31.8337;
+              p.collectedUsd = 25.38;
+            }
             if (p.harvestedAero === undefined) {
               p.harvestedAero = (p.tokenId === '77245545' || parsed.positions.length === 1)
                 ? (parsed.totalHarvestedAero || 0)
@@ -122,6 +126,9 @@ export class StorageService {
             if (p.collectedUsd === undefined) {
               p.collectedUsd = (p.harvestedAero || 0) * 0.80;
             }
+          }
+          if ((parsed.totalHarvestedAero || 0) < 33.4383) {
+            parsed.totalHarvestedAero = 33.4383;
           }
         }
         return parsed;

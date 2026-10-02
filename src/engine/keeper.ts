@@ -106,6 +106,15 @@ export class KeeperEngine {
                 continue;
               }
               const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
+              const targetRange = this.service.calculateRebalanceRange(state.currentTick, dir);
+              if (targetRange.tickLower === pos.tickLower && targetRange.tickUpper === pos.tickUpper) {
+                if (!(pos as any).lastRedundantLog || (Date.now() - (pos as any).lastRedundantLog > 300000)) {
+                  this.storage.addLog('INFO', `ETH ($${state.currentPrice.toFixed(2)}) está entre ticks CL100. El rango óptimo Zero-Swap [${pos.priceLower.toFixed(0)} - ${pos.priceUpper.toFixed(0)}] ya coincide con el actual. Esperando movimiento de precio para no gastar gas inútilmente.`);
+                  (pos as any).lastRedundantLog = Date.now();
+                }
+                continue;
+              }
+
               this.storage.addLog('ACTION', `Delay timer expired for #${pos.tokenId}. Triggering automated Zero-Swap rebalance (${dir})...`);
 
               const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null);
@@ -161,8 +170,8 @@ export class KeeperEngine {
                 `🎯 Umbral de cosecha alcanzado para #${pos.tokenId}: $${pendingUsd.toFixed(2)} acumulados >= umbral $${threshold}. Ejecutando Auto-Compound (${mode === 'usdc' ? '💵 Cosecha a USDC' : '🔄 Reinversión LP'})...`
               );
               const compRes = await this.service.executeCompound(pos.tokenId, mode);
-              if (compRes.success) {
-                const claimedAero = compRes.claimedAero || 0;
+              const claimedAero = compRes.claimedAero || 0;
+              if (claimedAero > 0) {
                 const aeroPrice = await this.service.getAeroPriceUsd();
                 const recUsd = compRes.usdcReceived || (claimedAero * aeroPrice);
                 this.storage.updatePosition(pos.tokenId, p => {
@@ -172,6 +181,8 @@ export class KeeperEngine {
                 this.storage.updateState(s => {
                   s.totalHarvestedAero = (s.totalHarvestedAero || 0) + claimedAero;
                 });
+              }
+              if (compRes.success) {
                 if (mode === 'usdc') {
                   this.storage.addLog(
                     'ACTION',
