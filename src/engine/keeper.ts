@@ -260,11 +260,7 @@ export class KeeperEngine {
               if (claimedAero > 0) {
                 const aeroPrice = await this.service.getAeroPriceUsd();
                 const recUsd = claimedAero * aeroPrice;
-                // All harvested benefits are funneled 100% to the Big LP (#77375885)
-                const targetTokenId = this.storage.getState().positions?.some(p => p.tokenId === '77375885')
-                  ? '77375885'
-                  : pos.tokenId;
-                this.storage.updatePosition(targetTokenId, p => {
+                this.storage.updatePosition(pos.tokenId, p => {
                   p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
                   p.collectedUsd = (p.collectedUsd || 0) + recUsd;
                 });
@@ -410,13 +406,12 @@ export class KeeperEngine {
       const claimedAero = res.claimedAero || 0;
       const aeroPrice = await this.service.getAeroPriceUsd();
       const recUsd = claimedAero * aeroPrice;
-      const targetId = this.storage.getState().positions?.some(p => p.tokenId === '77375885')
-        ? '77375885'
-        : (pos.tokenId || '77375885');
-      this.storage.updatePosition(targetId, p => {
-        p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
-        p.collectedUsd = (p.collectedUsd || 0) + recUsd;
-      });
+      if (pos.tokenId) {
+        this.storage.updatePosition(pos.tokenId, p => {
+          p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
+          p.collectedUsd = (p.collectedUsd || 0) + recUsd;
+        });
+      }
       this.storage.updateState(s => {
         s.totalHarvestedAero = (s.totalHarvestedAero || 0) + claimedAero;
       });

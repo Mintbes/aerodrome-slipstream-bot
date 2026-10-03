@@ -626,23 +626,23 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
-  // Recalibrate accounting: 100% of harvested rewards assigned to Big LP (#77375885)
+  // Recalibrate accounting: Real historical production displayed per position + 100% of reinvestment directed to Big LP (#77375885)
   app.post('/api/recalibrate', (req, res) => {
     keeper.getStorage().updateState(s => {
       s.totalHarvestedAero = 99.30;
     });
     keeper.getStorage().updatePosition('77375885', p => {
-      p.harvestedAero = 99.30;
-      p.collectedUsd = 79.30;
+      p.harvestedAero = 94.78;
+      p.collectedUsd = 75.69;
       p.compoundMode = 'reinvest';
     });
     keeper.getStorage().updatePosition('77375873', p => {
-      p.harvestedAero = 0;
-      p.collectedUsd = 0;
+      p.harvestedAero = 4.52;
+      p.collectedUsd = 3.61;
       p.compoundMode = 'usdc';
     });
-    keeper.getStorage().addLog('ACTION', '🎯 Beneficios asignados 100% al LP Grande (#77375885): 99.30 AERO ($79.30 USDC) asignados para reinversión en su próximo rebalanceo al alza.');
-    res.json({ success: true, message: 'All benefits successfully assigned to Big LP #77375885' });
+    keeper.getStorage().addLog('ACTION', '🎯 Opción 1 Activa: Producción real mostrada en cada tarjeta (Grande: $75.69 / Pequeña: $3.61) e inyección de reinversión dirigida 100% al LP Grande.');
+    res.json({ success: true, message: 'Option 1 applied: Real historical production displayed + injection directed to Big LP' });
   });
 
   // Self-restart endpoint (systemd Restart=always will reboot the process cleanly)
