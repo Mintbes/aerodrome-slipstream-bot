@@ -161,19 +161,21 @@ export class KeeperEngine {
 
               this.storage.addLog('ACTION', `Delay timer expired for #${pos.tokenId}. Triggering automated Zero-Swap rebalance (${dir})...`);
 
+              // User instruction: All benefits are assigned to the Big LP (#77375885)
+              const isBigPosition = pos.tokenId === '77375885';
               const isCompoundEnabled = pos.compound !== false && botState.compound !== false;
               const mode = pos.compoundMode || botState.compoundMode || 'usdc';
-              const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
-              const maxExtraUsdc = isReinvestMode ? (pos.collectedUsd || 0) : undefined;
+              const isReinvestMode = isBigPosition && isCompoundEnabled && mode === 'reinvest';
+              const maxExtraUsdc = isBigPosition ? undefined : 0;
 
               const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress, maxExtraUsdc);
               if (res.success) {
                 const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
                 const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
-                if (isReinvestMode && dir === 'UP' && maxExtraUsdc && maxExtraUsdc > 0) {
+                if (isReinvestMode && dir === 'UP') {
                   this.storage.updatePosition(pos.tokenId, p => {
-                    p.collectedUsd = Math.max(0, (p.collectedUsd || 0) - maxExtraUsdc);
+                    p.collectedUsd = 0;
                   });
                 }
 
@@ -258,7 +260,11 @@ export class KeeperEngine {
               if (claimedAero > 0) {
                 const aeroPrice = await this.service.getAeroPriceUsd();
                 const recUsd = claimedAero * aeroPrice;
-                this.storage.updatePosition(pos.tokenId, p => {
+                // All harvested benefits are funneled 100% to the Big LP (#77375885)
+                const targetTokenId = this.storage.getState().positions?.some(p => p.tokenId === '77375885')
+                  ? '77375885'
+                  : pos.tokenId;
+                this.storage.updatePosition(targetTokenId, p => {
                   p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
                   p.collectedUsd = (p.collectedUsd || 0) + recUsd;
                 });
@@ -312,10 +318,12 @@ export class KeeperEngine {
     const dir = state.currentPrice > pos.priceUpper ? 'UP' : 'DOWN';
 
     this.storage.addLog('ACTION', `User triggered manual Zero-Swap rebalance for NFT #${pos.tokenId} (${dir})...`);
+    // User instruction: All benefits are assigned to the Big LP (#77375885)
+    const isBigPosition = pos.tokenId === '77375885';
     const isCompoundEnabled = pos.compound !== false && botState.compound !== false;
     const mode = pos.compoundMode || botState.compoundMode || 'usdc';
-    const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
-    const maxExtraUsdc = isReinvestMode ? (pos.collectedUsd || 0) : undefined;
+    const isReinvestMode = isBigPosition && isCompoundEnabled && mode === 'reinvest';
+    const maxExtraUsdc = isBigPosition ? undefined : 0;
 
     const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress, maxExtraUsdc);
 
@@ -324,9 +332,9 @@ export class KeeperEngine {
       const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
       if (pos.tokenId) {
-        if (isReinvestMode && dir === 'UP' && maxExtraUsdc && maxExtraUsdc > 0) {
+        if (isReinvestMode && dir === 'UP') {
           this.storage.updatePosition(pos.tokenId, p => {
-            p.collectedUsd = Math.max(0, (p.collectedUsd || 0) - maxExtraUsdc);
+            p.collectedUsd = 0;
           });
         }
 
@@ -402,12 +410,13 @@ export class KeeperEngine {
       const claimedAero = res.claimedAero || 0;
       const aeroPrice = await this.service.getAeroPriceUsd();
       const recUsd = claimedAero * aeroPrice;
-      if (pos.tokenId) {
-        this.storage.updatePosition(pos.tokenId, p => {
-          p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
-          p.collectedUsd = (p.collectedUsd || 0) + recUsd;
-        });
-      }
+      const targetId = this.storage.getState().positions?.some(p => p.tokenId === '77375885')
+        ? '77375885'
+        : (pos.tokenId || '77375885');
+      this.storage.updatePosition(targetId, p => {
+        p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
+        p.collectedUsd = (p.collectedUsd || 0) + recUsd;
+      });
       this.storage.updateState(s => {
         s.totalHarvestedAero = (s.totalHarvestedAero || 0) + claimedAero;
       });

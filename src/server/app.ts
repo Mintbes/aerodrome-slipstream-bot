@@ -626,21 +626,23 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
-  // Recalibrate accounting to exact on-chain reality
+  // Recalibrate accounting: 100% of harvested rewards assigned to Big LP (#77375885)
   app.post('/api/recalibrate', (req, res) => {
     keeper.getStorage().updateState(s => {
       s.totalHarvestedAero = 99.30;
     });
     keeper.getStorage().updatePosition('77375885', p => {
-      p.harvestedAero = 94.78;
-      p.collectedUsd = 75.69;
+      p.harvestedAero = 99.30;
+      p.collectedUsd = 79.30;
+      p.compoundMode = 'reinvest';
     });
     keeper.getStorage().updatePosition('77375873', p => {
-      p.harvestedAero = 4.52;
-      p.collectedUsd = 3.61;
+      p.harvestedAero = 0;
+      p.collectedUsd = 0;
+      p.compoundMode = 'usdc';
     });
-    keeper.getStorage().addLog('ACTION', '📊 Contabilidad recalibrada con éxito a la realidad on-chain (99.30 AERO cosechados / $79.30 USDC asegurados).');
-    res.json({ success: true, message: 'Recalibrated successfully' });
+    keeper.getStorage().addLog('ACTION', '🎯 Beneficios asignados 100% al LP Grande (#77375885): 99.30 AERO ($79.30 USDC) asignados para reinversión en su próximo rebalanceo al alza.');
+    res.json({ success: true, message: 'All benefits successfully assigned to Big LP #77375885' });
   });
 
   // Self-restart endpoint (systemd Restart=always will reboot the process cleanly)
