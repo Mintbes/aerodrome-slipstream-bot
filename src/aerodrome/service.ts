@@ -83,14 +83,15 @@ export class AerodromeService {
   public wallets: Map<string, { id: string; name: string; account: any; walletClient: any }> = new Map();
 
   constructor() {
-    // Multi-RPC failover pool to prevent rate-limit throttling
+    const primaryRpc = config.rpcUrl || 'https://mainnet.base.org';
+    // Multi-RPC failover pool to prevent rate-limit throttling on public reads
     const rpcList = Array.from(new Set([
-      'https://base-rpc.publicnode.com',
-      config.rpcUrl,
+      primaryRpc,
+      'https://mainnet.base.org',
       'https://base.llamarpc.com',
-      'https://1rpc.io/base',
-      'https://mainnet.base.org'
-    ])).map(url => http(url, { timeout: 8000 }));
+      'https://base-rpc.publicnode.com',
+      'https://1rpc.io/base'
+    ])).map(url => http(url, { timeout: 25000 }));
 
     this.publicClient = createPublicClient({
       chain: base,
@@ -100,7 +101,9 @@ export class AerodromeService {
       }
     });
 
-    const rpcTransport = fallback(rpcList, { rank: false, retryCount: 3 });
+    // WalletClient MUST write to the primary RPC directly with 45s timeout
+    // to avoid node desync between mempools
+    const walletTransport = http(primaryRpc, { timeout: 45000 });
 
     try {
       this.account = privateKeyToAccount(config.privateKey);
@@ -111,7 +114,7 @@ export class AerodromeService {
     this.walletClient = createWalletClient({
       account: this.account,
       chain: base,
-      transport: rpcTransport
+      transport: walletTransport
     });
 
     // Initialize all configured wallets
@@ -121,7 +124,7 @@ export class AerodromeService {
         const wc = createWalletClient({
           account: acc,
           chain: base,
-          transport: rpcTransport
+          transport: walletTransport
         });
         this.wallets.set(acc.address.toLowerCase(), {
           id: w.id,
@@ -141,19 +144,13 @@ export class AerodromeService {
   registerWallet(name: string, privateKey: `0x${string}`): { success: boolean; address?: string; id?: string; error?: string } {
     try {
       const acc = privateKeyToAccount(privateKey);
-      const rpcList = Array.from(new Set([
-        'https://base-rpc.publicnode.com',
-        config.rpcUrl,
-        'https://base.llamarpc.com',
-        'https://1rpc.io/base',
-        'https://mainnet.base.org'
-      ])).map(url => http(url, { timeout: 8000 }));
-      const rpcTransport = fallback(rpcList, { rank: false, retryCount: 3 });
+      const primaryRpc = config.rpcUrl || 'https://mainnet.base.org';
+      const walletTransport = http(primaryRpc, { timeout: 45000 });
 
       const wc = createWalletClient({
         account: acc,
         chain: base,
-        transport: rpcTransport
+        transport: walletTransport
       });
       const id = `wallet-${this.wallets.size + 1}`;
       this.wallets.set(acc.address.toLowerCase(), {
