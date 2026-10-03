@@ -344,24 +344,24 @@
           <label class="p-3.5 rounded-xl border border-[#2f4363] bg-[#1a2842] hover:border-emerald-500 cursor-pointer flex flex-col justify-between transition" id="mode-label-usdc">
             <div class="flex items-center justify-between">
               <span class="text-sm font-bold text-white flex items-center gap-1.5">
-                💵 Cosecha a USDC
+                💵 Cosecha a USDC (Renta)
               </span>
               <input type="radio" name="compound-mode" value="usdc" checked class="accent-emerald-400" onchange="updateCompoundModeUI()">
             </div>
             <p class="text-[11px] text-gray-400 mt-2">
-              Cambia el 100% de AERO ganado directamente a USDC en tu wallet. Beneficio seguro sin impermanent loss.
+              Convierte AERO a USDC cada $25 y lo mantiene en tu wallet como beneficio líquido seguro.
             </p>
           </label>
 
           <label class="p-3.5 rounded-xl border border-[#2f4363] bg-[#1a2842] hover:border-blue-500 cursor-pointer flex flex-col justify-between transition" id="mode-label-reinvest">
             <div class="flex items-center justify-between">
               <span class="text-sm font-bold text-white flex items-center gap-1.5">
-                🔄 Auto-Compound LP
+                🔄 Bola de Nieve (Reinvertir al Alza)
               </span>
               <input type="radio" name="compound-mode" value="reinvest" class="accent-blue-400" onchange="updateCompoundModeUI()">
             </div>
             <p class="text-[11px] text-gray-400 mt-2">
-              Cambia AERO a USDC y lo reinvierte automáticamente al rebalancear al alza, aumentando el capital de tu posición LP en cada escalón.
+              Asegura AERO a USDC en tu wallet sin tocar el LP. En el próximo rebalanceo al alza, inyecta el 100% del USDC acumulado en el nuevo rango.
             </p>
           </label>
         </div>
@@ -1083,7 +1083,7 @@
       const manualBtn = document.getElementById('btn-modal-manual-compound');
       if (manualBtn) {
         manualBtn.innerHTML = selectedMode === 'reinvest'
-          ? '<span>🔄</span> Reinvertir LP Ahora'
+          ? '<span>🔄</span> Asegurar AERO a USDC Ahora'
           : '<span>💵</span> Cosechar a USDC Ahora';
       }
     }

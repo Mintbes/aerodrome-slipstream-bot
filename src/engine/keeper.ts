@@ -217,12 +217,20 @@ export class KeeperEngine {
 
           try {
             const amounts = await this.service.getPositionAmounts(pos.tokenId, state.currentPrice, pos.walletAddress);
-            const pendingUsd = amounts.uncollectedFeesUsd || 0;
+            const pendingGaugeUsd = amounts.uncollectedFeesUsd || 0;
+            const walletAero = await this.service.getWalletAeroBalance(pos.walletAddress);
+            const aeroPrice = await this.service.getAeroPriceUsd();
+            const walletAeroUsd = walletAero * aeroPrice;
+            const totalAvailableRewardsUsd = pendingGaugeUsd + walletAeroUsd;
 
-            if (pendingUsd >= threshold) {
+            if (totalAvailableRewardsUsd >= threshold || walletAeroUsd >= threshold) {
+              const harvestTypeLabel = mode === 'reinvest'
+                ? '🔄 Bola de Nieve (Asegurando a USDC para próximo rebalanceo)'
+                : '💵 Cosecha a USDC (Toma de beneficios)';
+
               this.storage.addLog(
                 'ACTION',
-                `🎯 Umbral de cosecha alcanzado para #${pos.tokenId}: $${pendingUsd.toFixed(2)} acumulados >= umbral $${threshold}. Ejecutando Auto-Compound (${mode === 'usdc' ? '💵 Cosecha a USDC' : '🔄 Reinversión LP'})...`
+                `🎯 Umbral de cosecha alcanzado para #${pos.tokenId}: $${totalAvailableRewardsUsd.toFixed(2)} acumulados ($${pendingGaugeUsd.toFixed(2)} en Gauge + $${walletAeroUsd.toFixed(2)} en Wallet) >= umbral $${threshold}. Ejecutando: ${harvestTypeLabel}...`
               );
               const compRes = await this.service.executeCompound(pos.tokenId, mode, pos.walletAddress);
               const claimedAero = compRes.claimedAero || 0;
@@ -238,15 +246,15 @@ export class KeeperEngine {
                 });
               }
               if (compRes.success) {
-                if (mode === 'usdc') {
+                if (mode === 'reinvest') {
                   this.storage.addLog(
                     'ACTION',
-                    `💵 ¡Auto-Cosecha exitosa para #${pos.tokenId}! ${(compRes.claimedAero || 0).toFixed(4)} AERO cambiados a $${(compRes.usdcReceived || 0).toFixed(2)} USDC en tu wallet! Tx: ${compRes.txHash?.slice(0, 10)}...`
+                    `🔄 ¡Bola de Nieve: ${(compRes.claimedAero || 0).toFixed(4)} AERO cambiados a +$${(compRes.usdcReceived || 0).toFixed(2)} USDC protegidos en wallet! Se sumarán al LP en el próximo rebalanceo al alza. Tx: ${compRes.txHash?.slice(0, 10)}...`
                   );
                 } else {
                   this.storage.addLog(
                     'ACTION',
-                    `🔄 ¡Auto-Compound exitoso para #${pos.tokenId}! ${(compRes.claimedAero || 0).toFixed(4)} AERO reinvertidos en la posición LP. Tx: ${compRes.txHash?.slice(0, 10)}...`
+                    `💵 ¡Auto-Cosecha exitosa para #${pos.tokenId}! ${(compRes.claimedAero || 0).toFixed(4)} AERO cambiados a $${(compRes.usdcReceived || 0).toFixed(2)} USDC en tu wallet! Tx: ${compRes.txHash?.slice(0, 10)}...`
                   );
                 }
               } else {
@@ -381,7 +389,7 @@ export class KeeperEngine {
       } else {
         this.storage.addLog(
           'ACTION',
-          `🔄 ¡Compound manual exitoso para #${pos.tokenId}! ${(res.claimedAero || 0).toFixed(4)} AERO reinvertidos en LP. Tx: ${res.txHash?.slice(0, 10)}...`
+          `🔄 ¡Bola de Nieve manual: ${(res.claimedAero || 0).toFixed(4)} AERO cambiados a +$${(res.usdcReceived || 0).toFixed(2)} USDC protegidos en wallet! Se sumarán al LP en el próximo rebalanceo al alza. Tx: ${res.txHash?.slice(0, 10)}...`
         );
       }
     } else {

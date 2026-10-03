@@ -62,6 +62,24 @@ export class AerodromeService {
     return this.cachedAeroPrice ? this.cachedAeroPrice.price : 0.80;
   }
 
+  /**
+   * Reads wallet AERO balance directly
+   */
+  async getWalletAeroBalance(targetWalletAddress?: string): Promise<number> {
+    try {
+      const wallet = this.getWalletFor(targetWalletAddress);
+      const aeroBal = await this.publicClient.readContract({
+        address: config.contracts.aero,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [wallet.account.address]
+      });
+      return Number(formatUnits(aeroBal, 18));
+    } catch {
+      return 0;
+    }
+  }
+
   public wallets: Map<string, { id: string; name: string; account: any; walletClient: any }> = new Map();
 
   constructor() {
@@ -411,6 +429,19 @@ export class AerodromeService {
 
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
 
+      // Record initial USDC balance before withdrawing LP
+      let initialUsdcBal = 0n;
+      try {
+        initialUsdcBal = await this.publicClient.readContract({
+          address: config.contracts.usdc,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [accountAddress]
+        });
+      } catch (balErr: any) {
+        console.warn(`[Service] Note reading initial USDC balance:`, balErr.message);
+      }
+
       // Step 1: If there is an active position, unstake from Gauge and withdraw liquidity
       if (activeTokenId) {
         const tokenIdBigInt = BigInt(activeTokenId);
@@ -557,9 +588,17 @@ export class AerodromeService {
       if (exitDirection === 'UP') {
         // Exited UP: range is placed below current price -> 100% USDC single-sided
         amount0Desired = 0n;
-        amount1Desired = usdcBal;
-        console.log(`[Service] Zero-Swap: Depositing 100% USDC (${formatUnits(usdcBal, 6)} USDC) below current price. 0 WETH needed!`);
-        if (usdcBal === 0n) throw new Error('No USDC balance available to fund the new range.');
+        if (reinvestAero) {
+          // Bola de Nieve (Option 1): Reinvest 100% of USDC in wallet (Old LP capital + all accumulated harvested USDC profits)
+          amount1Desired = usdcBal;
+          console.log(`[Service] 🔄 Bola de Nieve Rebalance: Reinvesting 100% of USDC (${formatUnits(usdcBal, 6)} USDC) including all harvested profits!`);
+        } else {
+          // Renta Pasiva (Pure Harvest): Only reinvest the USDC recovered from the previous LP, preserving harvested profits in wallet
+          const recoveredFromLp = usdcBal > initialUsdcBal ? (usdcBal - initialUsdcBal) : usdcBal;
+          amount1Desired = recoveredFromLp > 0n ? recoveredFromLp : usdcBal;
+          console.log(`[Service] 💵 Pure Harvest Rebalance: Depositing recovered LP capital (${formatUnits(amount1Desired, 6)} USDC), keeping prior profits in wallet.`);
+        }
+        if (amount1Desired === 0n) throw new Error('No USDC balance available to fund the new range.');
       } else {
         // Exited DOWN: range is placed above current price -> 100% WETH single-sided
         amount0Desired = wethBal;
@@ -1541,141 +1580,32 @@ export class AerodromeService {
         };
       }
 
-      if (mode === 'usdc') {
-        // Mode 1: Auto-Cosecha a USDC (pure profit cash-out to wallet)
-        const swapRes = await this.swapAeroToUsdc(aeroBal, accountAddress);
-        if (!swapRes.success) {
-          return {
-            success: false,
-            mode,
-            claimedAero: claimRes.claimedAero,
-            txHash: claimRes.txHash,
-            error: `AERO reclamado pero falló el swap a USDC: ${swapRes.error}`
-          };
-        }
-
+      // In both 'usdc' (Toma de Beneficios) and 'reinvest' (Bola de Nieve - Opción 1):
+      // Rewards are immediately converted 100% to USDC in the wallet to protect against AERO price drops.
+      // The LP position NEVER leaves the Gauge, maintaining 100% farming efficiency without pause.
+      // - In 'reinvest' mode (Bola de Nieve): This USDC is safely accumulated in the wallet and automatically
+      //   injected along with the LP capital into the new position on the next UP-rebalance!
+      // - In 'usdc' mode (Renta Pasiva): This USDC is retained in the wallet as pure cash-out profit.
+      const swapRes = await this.swapAeroToUsdc(aeroBal, accountAddress);
+      if (!swapRes.success) {
         return {
-          success: true,
-          mode: 'usdc',
-          claimedAero: claimRes.claimedAero || aeroBalNum,
-          usdcReceived: swapRes.usdcReceived,
-          txHash: swapRes.txHash
-        };
-      } else {
-        // Mode 2: Auto-Compound a LP (Reinvest in concentrated position)
-        const halfAero = aeroBal / 2n;
-        const remainingAero = aeroBal - halfAero;
-
-        const [swapUsdcRes, swapWethRes] = await Promise.all([
-          this.swapAeroToUsdc(halfAero, accountAddress),
-          this.swapAeroToWeth(remainingAero, accountAddress)
-        ]);
-
-        if (!swapUsdcRes.success || !swapWethRes.success) {
-          return {
-            success: false,
-            mode,
-            claimedAero: claimRes.claimedAero,
-            error: `Swap de AERO falló: ${swapUsdcRes.error || swapWethRes.error}`
-          };
-        }
-
-        // Check if position is staked in Gauge. If so, unstake first to allow increaseLiquidity
-        const isStaked = await this.publicClient.readContract({
-          address: config.contracts.gauge,
-          abi: gaugeAbi,
-          functionName: 'stakedContains',
-          args: [accountAddress, BigInt(tokenId)]
-        });
-
-        if (isStaked) {
-          console.log(`[Service] Temporarily withdrawing #${tokenId} from Gauge for increaseLiquidity...`);
-          await this.withdrawPositionFromGauge(tokenId, accountAddress);
-          await new Promise(r => setTimeout(r, 2000));
-        }
-
-        // Get fresh balances
-        const [wethBal, usdcBal] = await Promise.all([
-          this.publicClient.readContract({
-            address: config.contracts.weth,
-            abi: erc20Abi,
-            functionName: 'balanceOf',
-            args: [accountAddress]
-          }),
-          this.publicClient.readContract({
-            address: config.contracts.usdc,
-            abi: erc20Abi,
-            functionName: 'balanceOf',
-            args: [accountAddress]
-          })
-        ]);
-
-        // Approvals to PositionManager
-        const [wethAllowance, usdcAllowance] = await Promise.all([
-          this.publicClient.readContract({
-            address: config.contracts.weth,
-            abi: erc20Abi,
-            functionName: 'allowance',
-            args: [accountAddress, config.contracts.positionManager]
-          }),
-          this.publicClient.readContract({
-            address: config.contracts.usdc,
-            abi: erc20Abi,
-            functionName: 'allowance',
-            args: [accountAddress, config.contracts.positionManager]
-          })
-        ]);
-
-        if (wethAllowance < wethBal) {
-          const txW = await walletClient.writeContract({
-            address: config.contracts.weth,
-            abi: erc20Abi,
-            functionName: 'approve',
-            args: [config.contracts.positionManager, maxUint256]
-          });
-          await this.publicClient.waitForTransactionReceipt({ hash: txW });
-        }
-
-        if (usdcAllowance < usdcBal) {
-          const txU = await walletClient.writeContract({
-            address: config.contracts.usdc,
-            abi: erc20Abi,
-            functionName: 'approve',
-            args: [config.contracts.positionManager, maxUint256]
-          });
-          await this.publicClient.waitForTransactionReceipt({ hash: txU });
-        }
-
-        // Increase liquidity
-        const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
-        const incTx = await walletClient.writeContract({
-          address: config.contracts.positionManager,
-          abi: positionManagerAbi,
-          functionName: 'increaseLiquidity',
-          gas: 500000n,
-          args: [{
-            tokenId: BigInt(tokenId),
-            amount0Desired: wethBal,
-            amount1Desired: usdcBal,
-            amount0Min: 0n,
-            amount1Min: 0n,
-            deadline
-          }]
-        });
-
-        await this.publicClient.waitForTransactionReceipt({ hash: incTx });
-        console.log(`[Service] Liquidity increased on #${tokenId}! Tx: ${incTx}`);
-
-        // Re-stake into Gauge
-        await this.stakePositionInGauge(tokenId, accountAddress);
-
-        return {
-          success: true,
-          mode: 'reinvest',
+          success: false,
+          mode,
           claimedAero: claimRes.claimedAero,
-          txHash: incTx
+          txHash: claimRes.txHash,
+          error: `AERO reclamado pero falló el swap a USDC: ${swapRes.error}`
         };
       }
+
+      console.log(`[Service] ✅ Auto-Compound (${mode.toUpperCase()}): Swapped ${aeroBalNum.toFixed(4)} AERO to +$${(swapRes.usdcReceived || 0).toFixed(2)} USDC in wallet!`);
+
+      return {
+        success: true,
+        mode,
+        claimedAero: claimRes.claimedAero || aeroBalNum,
+        usdcReceived: swapRes.usdcReceived,
+        txHash: swapRes.txHash
+      };
     } catch (err: any) {
       console.error(`[Service] Compound execution error:`, err);
       return { success: false, mode, error: err.shortMessage || err.message || String(err) };
