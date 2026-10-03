@@ -1399,6 +1399,7 @@ export class AerodromeService {
       const minUsdc = (expectedUsdc * 98n) / 100n; // 2% max slippage
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
 
+      console.log(`[Service] Expected USDC output: $${(Number(expectedUsdc) / 1e6).toFixed(2)}. Submitting swapExactTokensForTokens...`);
       const swapTx = await walletClient.writeContract({
         address: config.contracts.v2Router,
         abi: v2RouterAbi,
@@ -1412,6 +1413,7 @@ export class AerodromeService {
           deadline
         ]
       });
+      console.log(`[Service] Swap tx submitted: ${swapTx}. Waiting for confirmation...`);
 
       let receipt;
       try {

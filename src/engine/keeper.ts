@@ -6,6 +6,8 @@ export class KeeperEngine {
   private service: AerodromeService;
   private storage: StorageService;
   private isRunning: boolean = false;
+  private isChecking: boolean = false;
+  private lastWalletCompoundTime: Map<string, number> = new Map();
   private timer: NodeJS.Timeout | null = null;
   public lastPoolState: PoolState | null = null;
 
@@ -51,6 +53,8 @@ export class KeeperEngine {
    * Main strategy check cycle
    */
   public async check(): Promise<void> {
+    if (this.isChecking) return;
+    this.isChecking = true;
     try {
       const state = await this.service.getPoolState();
       this.lastPoolState = state;
@@ -215,6 +219,12 @@ export class KeeperEngine {
           const mode = pos.compoundMode || botState.compoundMode || 'usdc';
           const threshold = pos.compoundThresholdUsd || botState.compoundThresholdUsd || 25;
 
+          const walletKey = (pos.walletAddress || 'default').toLowerCase();
+          const lastCompound = this.lastWalletCompoundTime.get(walletKey) || 0;
+          if (Date.now() - lastCompound < 180_000) {
+            continue;
+          }
+
           try {
             const amounts = await this.service.getPositionAmounts(pos.tokenId, state.currentPrice, pos.walletAddress);
             const pendingGaugeUsd = amounts.uncollectedFeesUsd || 0;
@@ -224,6 +234,7 @@ export class KeeperEngine {
             const totalAvailableRewardsUsd = pendingGaugeUsd + walletAeroUsd;
 
             if (totalAvailableRewardsUsd >= threshold || walletAeroUsd >= threshold) {
+              this.lastWalletCompoundTime.set(walletKey, Date.now());
               const harvestTypeLabel = mode === 'reinvest'
                 ? '🔄 Bola de Nieve (Asegurando a USDC para próximo rebalanceo)'
                 : '💵 Cosecha a USDC (Toma de beneficios)';
@@ -270,6 +281,8 @@ export class KeeperEngine {
       const msg = err.shortMessage || err.message || String(err);
       console.error(`[Keeper] Check warning: ${msg}`);
       this.storage.addLog('ERROR', `Keeper check failed: ${msg}`);
+    } finally {
+      this.isChecking = false;
     }
   }
 
