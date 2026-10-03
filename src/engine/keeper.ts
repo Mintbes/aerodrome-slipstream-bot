@@ -76,6 +76,9 @@ export class KeeperEngine {
             compound: botState.compound
           }] : []);
 
+      // Sort positions so larger capital positions are evaluated and rebalanced first
+      positions.sort((a, b) => (b.collectedUsd || 0) - (a.collectedUsd || 0));
+
       for (const pos of positions) {
         // Watchdog: Ensure active position is always Staked in Aerodrome Gauge
         if (pos.tokenId && !config.dryRun) {
@@ -161,11 +164,18 @@ export class KeeperEngine {
               const isCompoundEnabled = pos.compound !== false && botState.compound !== false;
               const mode = pos.compoundMode || botState.compoundMode || 'usdc';
               const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
+              const maxExtraUsdc = isReinvestMode ? (pos.collectedUsd || 0) : undefined;
 
-              const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress);
+              const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress, maxExtraUsdc);
               if (res.success) {
                 const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
                 const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
+
+                if (isReinvestMode && dir === 'UP' && maxExtraUsdc && maxExtraUsdc > 0) {
+                  this.storage.updatePosition(pos.tokenId, p => {
+                    p.collectedUsd = Math.max(0, (p.collectedUsd || 0) - maxExtraUsdc);
+                  });
+                }
 
                 if (res.reinvestedAero && res.reinvestedAero > 0) {
                   this.storage.updatePosition(pos.tokenId, p => {
@@ -305,14 +315,21 @@ export class KeeperEngine {
     const isCompoundEnabled = pos.compound !== false && botState.compound !== false;
     const mode = pos.compoundMode || botState.compoundMode || 'usdc';
     const isReinvestMode = isCompoundEnabled && mode === 'reinvest';
+    const maxExtraUsdc = isReinvestMode ? (pos.collectedUsd || 0) : undefined;
 
-    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress);
+    const res = await this.service.executeZeroSwapRebalance(state.currentTick, dir, pos.tokenId || null, isReinvestMode, pos.walletAddress, maxExtraUsdc);
 
     if (res.success) {
       const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
       const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
       if (pos.tokenId) {
+        if (isReinvestMode && dir === 'UP' && maxExtraUsdc && maxExtraUsdc > 0) {
+          this.storage.updatePosition(pos.tokenId, p => {
+            p.collectedUsd = Math.max(0, (p.collectedUsd || 0) - maxExtraUsdc);
+          });
+        }
+
         if (res.reinvestedAero && res.reinvestedAero > 0) {
           this.storage.updatePosition(pos.tokenId, p => {
             p.harvestedAero = (p.harvestedAero || 0) + res.reinvestedAero!;

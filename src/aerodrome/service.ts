@@ -387,7 +387,8 @@ export class AerodromeService {
     exitDirection: 'UP' | 'DOWN',
     activeTokenId: string | null,
     reinvestAero: boolean = false,
-    targetWalletAddress?: string
+    targetWalletAddress?: string,
+    maxAdditionalUsdc?: number
   ): Promise<{
     success: boolean;
     newRange: ReturnType<typeof calculateZeroSwapUsdcRange>;
@@ -586,9 +587,17 @@ export class AerodromeService {
         // Exited UP: range is placed below current price -> 100% USDC single-sided
         amount0Desired = 0n;
         if (reinvestAero) {
-          // Bola de Nieve (Option 1): Reinvest 100% of USDC in wallet (Old LP capital + all accumulated harvested USDC profits)
-          amount1Desired = usdcBal;
-          console.log(`[Service] 🔄 Bola de Nieve Rebalance: Reinvesting 100% of USDC (${formatUnits(usdcBal, 6)} USDC) including all harvested profits!`);
+          // Bola de Nieve (Option 1): Reinvest recovered LP USDC + allocated harvested profits
+          if (typeof maxAdditionalUsdc === 'number' && maxAdditionalUsdc >= 0) {
+            const recoveredFromLp = usdcBal > initialUsdcBal ? (usdcBal - initialUsdcBal) : usdcBal;
+            const extraBigInt = parseUnits(maxAdditionalUsdc.toFixed(6), 6);
+            const targetDesired = recoveredFromLp + extraBigInt;
+            amount1Desired = targetDesired <= usdcBal ? targetDesired : usdcBal;
+            console.log(`[Service] 🔄 Bola de Nieve Rebalance: Reinvesting recovered LP (${formatUnits(recoveredFromLp, 6)} USDC) + allocated harvested profit (${maxAdditionalUsdc.toFixed(2)} USDC) = ${formatUnits(amount1Desired, 6)} USDC!`);
+          } else {
+            amount1Desired = usdcBal;
+            console.log(`[Service] 🔄 Bola de Nieve Rebalance: Reinvesting 100% of USDC (${formatUnits(usdcBal, 6)} USDC) including all harvested profits!`);
+          }
         } else {
           // Renta Pasiva (Pure Harvest): Only reinvest the USDC recovered from the previous LP, preserving harvested profits in wallet
           const recoveredFromLp = usdcBal > initialUsdcBal ? (usdcBal - initialUsdcBal) : usdcBal;
