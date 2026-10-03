@@ -1374,7 +1374,15 @@ export class AerodromeService {
         ]
       });
 
-      const receipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx });
+      let receipt;
+      try {
+        receipt = await this.publicClient.waitForTransactionReceipt({ hash: swapTx, timeout: 120_000, retryCount: 5 });
+      } catch (waitErr: any) {
+        await new Promise(r => setTimeout(r, 4000));
+        receipt = await this.publicClient.getTransactionReceipt({ hash: swapTx }).catch(() => null);
+        if (!receipt) throw waitErr;
+      }
+
       if (receipt.status !== 'success') {
         throw new Error(`Fallo en la transacción de swap AERO->USDC (Tx: ${swapTx})`);
       }
