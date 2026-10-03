@@ -247,7 +247,7 @@ export class KeeperEngine {
               const claimedAero = compRes.claimedAero || 0;
               if (claimedAero > 0) {
                 const aeroPrice = await this.service.getAeroPriceUsd();
-                const recUsd = compRes.usdcReceived || (claimedAero * aeroPrice);
+                const recUsd = claimedAero * aeroPrice;
                 this.storage.updatePosition(pos.tokenId, p => {
                   p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
                   p.collectedUsd = (p.collectedUsd || 0) + recUsd;
@@ -384,7 +384,7 @@ export class KeeperEngine {
     if (res.success) {
       const claimedAero = res.claimedAero || 0;
       const aeroPrice = await this.service.getAeroPriceUsd();
-      const recUsd = res.usdcReceived || (claimedAero * aeroPrice);
+      const recUsd = claimedAero * aeroPrice;
       if (pos.tokenId) {
         this.storage.updatePosition(pos.tokenId, p => {
           p.harvestedAero = (p.harvestedAero || 0) + claimedAero;
