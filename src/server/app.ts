@@ -626,6 +626,23 @@ export function createServer(keeper: KeeperEngine) {
     }
   });
 
+  // Recalibrate accounting to exact on-chain reality
+  app.post('/api/recalibrate', (req, res) => {
+    keeper.getStorage().updateState(s => {
+      s.totalHarvestedAero = 99.30;
+    });
+    keeper.getStorage().updatePosition('77375885', p => {
+      p.harvestedAero = 94.78;
+      p.collectedUsd = 75.69;
+    });
+    keeper.getStorage().updatePosition('77375873', p => {
+      p.harvestedAero = 4.52;
+      p.collectedUsd = 3.61;
+    });
+    keeper.getStorage().addLog('ACTION', '📊 Contabilidad recalibrada con éxito a la realidad on-chain (99.30 AERO cosechados / $79.30 USDC asegurados).');
+    res.json({ success: true, message: 'Recalibrated successfully' });
+  });
+
   // Self-restart endpoint (systemd Restart=always will reboot the process cleanly)
   app.post('/api/restart', (req, res) => {
     keeper.getStorage().addLog('ACTION', 'Reinicio del servicio solicitado.');
