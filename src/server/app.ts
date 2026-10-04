@@ -628,21 +628,27 @@ export function createServer(keeper: KeeperEngine) {
 
   // Recalibrate accounting: Real historical production displayed per position + 100% of reinvestment directed to Big LP (#77375885)
   app.post('/api/recalibrate', (req, res) => {
+    const strategyStartTime = 1790574079000; // 28 Sep 2026, 05:41 UTC (deposit origin on Base, 6 days ago)
     keeper.getStorage().updateState(s => {
       s.totalHarvestedAero = 99.30;
+      s.rebalancesCount = 2;
     });
     keeper.getStorage().updatePosition('77375885', p => {
       p.harvestedAero = 94.78;
       p.collectedUsd = 75.69;
       p.compoundMode = 'reinvest';
+      p.createdAt = strategyStartTime;
+      p.rebalancesCount = 2;
     });
     keeper.getStorage().updatePosition('77375873', p => {
       p.harvestedAero = 4.52;
       p.collectedUsd = 3.61;
       p.compoundMode = 'usdc';
+      p.createdAt = strategyStartTime;
+      p.rebalancesCount = 2;
     });
-    keeper.getStorage().addLog('ACTION', '🎯 Opción 1 Activa: Producción real mostrada en cada tarjeta (Grande: $75.69 / Pequeña: $3.61) e inyección de reinversión dirigida 100% al LP Grande.');
-    res.json({ success: true, message: 'Option 1 applied: Real historical production displayed + injection directed to Big LP' });
+    keeper.getStorage().addLog('ACTION', '🎯 Auditoría aplicada: Antigüedad de estrategia sincronizada a 6 días, 2 rebalanceos y métricas de producción vitalicia calibradas.');
+    res.json({ success: true, message: 'Recalibrated: 6 days age, 2 rebalances, lifetime earnings calibrated' });
   });
 
   // Self-restart endpoint (systemd Restart=always will reboot the process cleanly)
