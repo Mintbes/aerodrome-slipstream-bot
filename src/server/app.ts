@@ -628,27 +628,29 @@ export function createServer(keeper: KeeperEngine) {
 
   // Recalibrate accounting: Real historical production displayed per position + 100% of reinvestment directed to Big LP (#77375885)
   app.post('/api/recalibrate', (req, res) => {
-    const strategyStartTime = 1790574079000; // 28 Sep 2026, 05:41 UTC (deposit origin on Base, 6 days ago)
+    const bigStartTime = 1790842639000;   // 01 Oct 2026, 08:17:19 UTC (creación inicial LP Grande #77296712 en Cartera Satélite)
+    const smallStartTime = 1790766981000; // 30 Sep 2026, 11:16:21 UTC (creación inicial LP Pequeño #77245545 en Cartera Satélite)
+
     keeper.getStorage().updateState(s => {
       s.totalHarvestedAero = 99.30;
-      s.rebalancesCount = 2;
+      s.rebalancesCount = 2; // 1 rebalanceo del Grande + 1 rebalanceo del Pequeño
     });
     keeper.getStorage().updatePosition('77375885', p => {
       p.harvestedAero = 94.78;
       p.collectedUsd = 75.69;
       p.compoundMode = 'reinvest';
-      p.createdAt = strategyStartTime;
-      p.rebalancesCount = 2;
+      p.createdAt = bigStartTime;
+      p.rebalancesCount = 1;
     });
     keeper.getStorage().updatePosition('77375873', p => {
       p.harvestedAero = 4.52;
       p.collectedUsd = 3.61;
       p.compoundMode = 'usdc';
-      p.createdAt = strategyStartTime;
-      p.rebalancesCount = 2;
+      p.createdAt = smallStartTime;
+      p.rebalancesCount = 1;
     });
-    keeper.getStorage().addLog('ACTION', '🎯 Auditoría aplicada: Antigüedad de estrategia sincronizada a 6 días, 2 rebalanceos y métricas de producción vitalicia calibradas.');
-    res.json({ success: true, message: 'Recalibrated: 6 days age, 2 rebalances, lifetime earnings calibrated' });
+    keeper.getStorage().addLog('ACTION', '🎯 Auditoría Satélite: Métricas individualizadas por LP aplicadas (Grande: ~2d 22h, 1 rebalanceo / Pequeño: ~3d 20h, 1 rebalanceo).');
+    res.json({ success: true, message: 'Recalibrated: Strict satellite individual LP metrics applied' });
   });
 
   // Self-restart endpoint (systemd Restart=always will reboot the process cleanly)
