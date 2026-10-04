@@ -173,11 +173,7 @@ export class KeeperEngine {
                 const oldRange: [number, number] = [pos.priceLower, pos.priceUpper];
                 const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
-                if (isReinvestMode && dir === 'UP') {
-                  this.storage.updatePosition(pos.tokenId, p => {
-                    p.collectedUsd = 0;
-                  });
-                }
+
 
                 if (res.reinvestedAero && res.reinvestedAero > 0) {
                   this.storage.updatePosition(pos.tokenId, p => {
@@ -328,11 +324,7 @@ export class KeeperEngine {
       const newRange: [number, number] = [res.newRange.priceLower, res.newRange.priceUpper];
 
       if (pos.tokenId) {
-        if (isReinvestMode && dir === 'UP') {
-          this.storage.updatePosition(pos.tokenId, p => {
-            p.collectedUsd = 0;
-          });
-        }
+
 
         if (res.reinvestedAero && res.reinvestedAero > 0) {
           this.storage.updatePosition(pos.tokenId, p => {
