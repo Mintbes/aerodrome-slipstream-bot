@@ -1146,14 +1146,14 @@ export class AerodromeService {
           const aeroPrice = await this.getAeroPriceUsd();
           uncollectedFeesUsd = uncollectedAero * aeroPrice;
 
-          // Concentrated 4.1% 24h Rolling Rate matching Snuggle Finance (Gauge emissions + 24h pool fee tier)
-          const baseGaugeApr = 178.1; // Gauge emissions run-rate for concentrated 4.1% CL100 at $0.8006 AERO
+          // Concentrated 4.1% 24h Rolling Rate matching Aerodrome Gauge live emissions (~183.1% gross vs 161.0% net on Snuggle after 15% fee)
+          const baseGaugeApr = 162.5; // Gauge emissions run-rate for concentrated 4.1% CL100 at $0.8006 AERO
           const liveGaugeApr = baseGaugeApr * (aeroPrice / 0.8006);
-          const feeTierApr = 17.2; // 24h swap volume fee APR for CL100 WETH/USDC
+          const feeTierApr = 13.5; // 24h swap volume fee APR for CL100 WETH/USDC
           apr = Number((liveGaugeApr + feeTierApr).toFixed(1));
         } catch (simErr) {
           console.error('[Service] Error reading gauge earned / apr:', simErr);
-          apr = 195.3;
+          apr = 183.1;
         }
       } else {
         apr = 17.2;
